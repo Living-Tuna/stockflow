@@ -8,7 +8,7 @@ export function useThemeLogo(): string {
   const [logo, setLogo] = useState("/logo.svg");
 
   useEffect(() => {
-    setLogo(resolvedTheme === "dark" ? "/logofornight.svg" : "/logo.svg");
+    setLogo("/logo.svg");
   }, [resolvedTheme]);
 
   return logo;

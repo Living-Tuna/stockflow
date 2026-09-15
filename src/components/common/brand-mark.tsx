@@ -39,7 +39,7 @@ export function BrandMark({
           className="h-full w-full object-contain"
           onError={(event) => {
             const image = event.currentTarget;
-            if (image.src.endsWith('/logo.svg') || image.src.endsWith('/logofornight.svg')) return;
+            if (image.src.endsWith('/logo.svg')) return;
             image.src = themeLogo;
           }}
         />
