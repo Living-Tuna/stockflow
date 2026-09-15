@@ -21,13 +21,22 @@ interface CustomerData {
 export function CustomerList() {
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const [isUpdating, startUpdateTransition] = useTransition();
   const { toast } = useToast();
 
   const fetchAndSetCustomers = async () => {
-    const data = await getCustomers();
-    setCustomers(data);
-    setIsLoading(false);
+    try {
+      setIsLoading(true);
+      const data = await getCustomers();
+      setCustomers(data);
+      setHasError(false);
+    } catch (err) {
+      console.error("Failed to load customers:", err);
+      setHasError(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -74,6 +83,22 @@ export function CustomerList() {
     return (
       <div className="flex items-center justify-center p-12 bg-card rounded-lg shadow-md">
         <LoadingSpinner text="Loading customer data..." />
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="bg-card p-6 rounded-lg shadow-md">
+        <div className="text-center">
+          <div className="text-lg font-semibold text-red-600 mb-2">Failed to load subscription data</div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Could not fetch companies from the database. Check the Supabase connection and try again.
+          </p>
+          <Button onClick={() => fetchAndSetCustomers()} disabled={isUpdating}>
+            Retry
+          </Button>
+        </div>
       </div>
     );
   }

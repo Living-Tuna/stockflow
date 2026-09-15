@@ -70,7 +70,7 @@ function convertKeysToCamel(obj: any): any {
 function convertSort(sortObj: any): { column: string; ascending: boolean }[] {
   if (!sortObj) return [];
   return Object.entries(sortObj).map(([key, val]) => ({
-    column: key,
+    column: toSnakeCase(key),
     ascending: val === 1,
   }));
 }

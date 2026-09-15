@@ -49,6 +49,7 @@ export async function markAsPaid(companyId: string, subscriptionType: Subscripti
       { 
         $set: { 
           paymentStatus: 'paid',
+          subscriptionType,
           subscriptionStartDate: now.toISOString(),
           subscriptionExpiryDate: expiryDate.toISOString(),
         } 
