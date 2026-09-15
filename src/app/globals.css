@@ -18,8 +18,8 @@ body {
     --popover-foreground: 224 71.4% 4.1%;
     --primary: 145 60% 40%;
     --primary-foreground: 145 60% 96%;
-    --secondary: 215 30% 45%;
-    --secondary-foreground: 215 25% 96%;
+    --secondary: 145 35% 45%;
+    --secondary-foreground: 145 60% 96%;
     --tertiary: 220 15% 96.5%;
     --tertiary-foreground: 220 10% 35%;
     --muted: 220 10% 90%;
@@ -47,8 +47,8 @@ body {
     --popover-foreground: 210 20% 95%;
     --primary: 145 58% 50%;
     --primary-foreground: 145 30% 96%;
-    --secondary: 215 35% 55%;
-    --secondary-foreground: 215 15% 96%;
+    --secondary: 145 35% 50%;
+    --secondary-foreground: 145 30% 96%;
     --tertiary: 224 71.4% 15%;
     --tertiary-foreground: 210 15% 70%;
     --muted: 224 71.4% 20%;
@@ -181,6 +181,31 @@ body {
 /* Smooth scroll behavior */
 html {
   scroll-behavior: smooth;
+}
+
+/* Minimal custom scrollbar */
+* {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: hsl(var(--primary) / 0.35) transparent; /* Firefox */
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--primary) / 0.3);
+  border-radius: 9999px;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--primary) / 0.55);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 /* Improve focus visibility globally */
 *:focus-visible {
