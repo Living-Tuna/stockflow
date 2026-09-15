@@ -3,11 +3,20 @@ import type { LucideIcon } from 'lucide-react';
 import { LayoutDashboard, Package, DollarSign, Users, Building, User as UserIcon, Settings as SettingsIcon, MessageSquare, Contact, BarChartHorizontal, BookOpen } from 'lucide-react';
 import type { SubscriptionPlan, CurrencyOption } from '@/types';
 
+export interface NavSubLink {
+  href: string;
+  label: string;
+  secondary?: string;
+  disabled?: boolean;
+}
+
 export interface NavLink {
   href: string;
   label: string;
   icon: LucideIcon;
   disabled?: boolean;
+  description?: string;
+  children?: NavSubLink[];
 }
 
 export interface NavLinkGroup {
@@ -17,33 +26,47 @@ export interface NavLinkGroup {
 
 export const NAV_LINK_GROUPS: NavLinkGroup[] = [
   {
+    title: "Overview",
     links: [
-      { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/admin/billing', label: 'Billing', icon: DollarSign },
-      { href: '/admin/products', label: 'Products', icon: Package },
+      { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, description: 'Sales & business snapshot' },
+      { href: '/admin/billing', label: 'Billing', icon: DollarSign, description: 'Create invoices & bills' },
     ],
   },
   {
+    title: "Catalogue",
     links: [
-      { href: '/admin/accounting', label: 'Accounting', icon: BookOpen },
+      {
+        href: '/admin/products',
+        label: 'Products',
+        icon: Package,
+        description: 'Inventory catalogue',
+        children: [
+          { href: '/admin/products', label: 'All Products', secondary: 'Browse & manage stock' },
+          { href: '/admin/products/add', label: 'Add Product', secondary: 'Create a new item' },
+        ],
+      },
+      { href: '/admin/accounting', label: 'Accounting', icon: BookOpen, description: 'Ledger & finance' },
     ],
   },
   {
+    title: "People",
     links: [
-      { href: '/admin/customers', label: 'Customers', icon: Contact },
-      { href: '/admin/staff', label: 'Staff', icon: Users },
-      { href: '/admin/stores', label: 'Stores', icon: Building },
+      { href: '/admin/customers', label: 'Customers', icon: Contact, description: 'Your customer base' },
+      { href: '/admin/staff', label: 'Staff', icon: Users, description: 'Team & roles' },
+      { href: '/admin/stores', label: 'Stores', icon: Building, description: 'Store locations' },
     ],
   },
   {
+    title: "Communications",
     links: [
-      { href: '/admin/chat', label: 'Chat', icon: MessageSquare },
+      { href: '/admin/chat', label: 'Chat', icon: MessageSquare, description: 'Store conversations' },
     ],
   },
   {
+    title: "Account",
     links: [
-      { href: '/admin/profile', label: 'Profile', icon: UserIcon },
-      { href: '/admin/settings', label: 'Settings', icon: SettingsIcon },
+      { href: '/admin/profile', label: 'Profile', icon: UserIcon, description: 'Your details' },
+      { href: '/admin/settings', label: 'Settings', icon: SettingsIcon, description: 'Preferences & plans' },
     ],
   },
 ];
