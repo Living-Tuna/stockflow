@@ -67,6 +67,7 @@ export function AdminLoginEmbedded({ onLoginSuccess, onCancel, onSwitchToSignup 
         localStorage.setItem('userName', data.user.name || 'Admin');
         localStorage.setItem('userRole', data.user.role || 'admin');
         localStorage.setItem('companyId', data.user.companyId);
+        localStorage.setItem('userEmail', data.user.email || '');
         localStorage.setItem('stockflowDataMode', 'cloud');
 
         await fetchCompanyProfile(data.user.companyId);
@@ -152,6 +153,7 @@ export function AdminLoginEmbedded({ onLoginSuccess, onCancel, onSwitchToSignup 
         localStorage.setItem('userName', data.user.name || 'Admin');
         localStorage.setItem('userRole', data.user.role || 'admin');
         localStorage.setItem('companyId', data.user.companyId);
+        localStorage.setItem('userEmail', data.user.email || '');
         localStorage.setItem('stockflowDataMode', 'cloud');
 
         // Fetch company profile right after successful login to populate userProfile in store

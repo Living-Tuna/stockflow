@@ -4,21 +4,33 @@
 import { connectToDatabase } from '@/lib/db';
 import type { Company, SubscriptionType, User } from '@/types';
 import { add } from 'date-fns';
-import dotenv from 'dotenv';
 
-dotenv.config();
+const HANDLER_ADMIN_EMAIL = (process.env.HANDLER_ADMIN_EMAIL || '4lfasbadar@gmail.com').toLowerCase();
 
-const HANDLER_PASSWORD = process.env.HANDLER_PASSWORD;
-
-export async function verifyPassword(password: string): Promise<{ success: boolean; error?: string }> {
-  if (!HANDLER_PASSWORD) {
-    console.error("HANDLER_PASSWORD environment variable is not set.");
-    return { success: false, error: 'Server configuration error.' };
+export async function verifyHandlerAccess(userId?: string | null): Promise<{ success: boolean; error?: string }> {
+  if (!userId) {
+    return { success: false, error: 'You must be signed in as an admin to access the Subscription Handler.' };
   }
-  if (password === HANDLER_PASSWORD) {
+
+  try {
+    const { db } = await connectToDatabase();
+    const user = await db.collection<User>('users').findOne({ id: userId });
+
+    if (!user) {
+      return { success: false, error: 'Signed-in account not found. Please log in again.' };
+    }
+
+    const userEmail = (user.email || '').toLowerCase();
+    if (userEmail !== HANDLER_ADMIN_EMAIL) {
+      return { success: false, error: `Access denied: ${userEmail || 'your account'} is not authorized to use the Subscription Handler.` };
+    }
+
     return { success: true };
+  } catch (e) {
+    console.error("Failed to verify handler access:", e);
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return { success: false, error: `Failed to verify access: ${message}` };
   }
-  return { success: false, error: 'Invalid password.' };
 }
 
 export async function getCustomers(): Promise<{ company: Company; admin: User | null }[]> {
