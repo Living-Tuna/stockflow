@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { cn, getCurrencySymbol } from '@/lib/utils';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
@@ -131,6 +132,15 @@ export function DailyLedger({ startDate, endDate, storeId }: DailyLedgerProps) {
   );
 
   const openingEntry = useMemo(() => dayEntries.find(e => e.entryType === 'opening_balance'), [dayEntries]);
+
+  const manualIncome = useMemo(
+    () => dayEntries.filter(e => e.entryType === 'income').reduce((sum, e) => sum + e.amount, 0),
+    [dayEntries]
+  );
+  const manualExpense = useMemo(
+    () => dayEntries.filter(e => e.entryType === 'expense').reduce((sum, e) => sum + e.amount, 0),
+    [dayEntries]
+  );
 
   const todayKey = format(new Date(), 'yyyy-MM-dd');
 
@@ -412,59 +422,106 @@ export function DailyLedger({ startDate, endDate, storeId }: DailyLedgerProps) {
             <Badge variant="secondary">{dayEntries.length}</Badge>
           </div>
           {dayEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No manual entries for this day.</p>
+            <p className="text-sm text-muted-foreground">No manual entries for this day. Use the form above to add income or expenses.</p>
           ) : (
-            <ul className="space-y-2">
-              {dayEntries.map(entry => (
-                <li key={entry.id} className="rounded-lg border p-3 bg-tertiary">
-                  {editingId === entry.id ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={editAmount}
-                        onChange={(e) => setEditAmount(e.target.value)}
-                        className="w-32"
-                      />
-                      <Input list="ledger-categories" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-44" />
-                      <Input value={editNote} onChange={(e) => setEditNote(e.target.value)} className="w-56" placeholder="Note" />
-                      <Button size="sm" onClick={() => saveEditing(entry)} disabled={isSavingEdit}>
-                        {isSavingEdit && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-                        <Check className="mr-1 h-3 w-3" /> Save
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-3 min-w-0">
-                        {entryBadge(entry.entryType)}
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium truncate">{entry.category || (entry.entryType === 'income' ? 'Income' : 'Expense')}</div>
-                          {entry.note && <div className="text-xs text-muted-foreground truncate">{entry.note}</div>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className={cn(
-                          'text-sm font-semibold tabular-nums',
-                          entry.entryType === 'income' ? 'text-green-600' : entry.entryType === 'expense' ? 'text-red-600' : 'text-amber-600'
-                        )}>
-                          {entryAmount(entry.entryType, entry.amount)}
-                        </span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditing(entry)} title="Edit">
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteEntry(entry)} title="Delete">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <div className="rounded-lg border overflow-hidden bg-tertiary">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-24">Type</TableHead>
+                    <TableHead className="w-52">Category</TableHead>
+                    <TableHead>Note</TableHead>
+                    <TableHead className="w-36 text-right">Amount</TableHead>
+                    <TableHead className="w-24 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dayEntries.map(entry => (
+                    <TableRow key={entry.id}>
+                      {editingId === entry.id ? (
+                        <>
+                          <TableCell>{entryBadge(entry.entryType)}</TableCell>
+                          <TableCell>
+                            <Input
+                              list="ledger-categories"
+                              value={editCategory}
+                              onChange={(e) => setEditCategory(e.target.value)}
+                              className="h-8 w-full"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={editNote}
+                              onChange={(e) => setEditNote(e.target.value)}
+                              className="h-8 w-full"
+                              placeholder="Note"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editAmount}
+                              onChange={(e) => setEditAmount(e.target.value)}
+                              className="h-8 w-32 ml-auto text-right"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button size="sm" onClick={() => saveEditing(entry)} disabled={isSavingEdit} title="Save">
+                                {isSavingEdit && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                                <Check className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} title="Cancel">
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell>{entryBadge(entry.entryType)}</TableCell>
+                          <TableCell className="font-medium">{entry.category || (entry.entryType === 'income' ? 'Income' : 'Expense')}</TableCell>
+                          <TableCell className="text-muted-foreground">{entry.note || <span className="text-muted-foreground/50">—</span>}</TableCell>
+                          <TableCell className={cn(
+                            'text-right font-semibold tabular-nums',
+                            entry.entryType === 'income' ? 'text-green-600' : entry.entryType === 'expense' ? 'text-red-600' : 'text-amber-600'
+                          )}>
+                            {entryAmount(entry.entryType, entry.amount)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditing(entry)} title="Edit">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteEntry(entry)} title="Delete">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-sm font-semibold">Day manual subtotal</TableCell>
+                    <TableCell colSpan={2} className="text-right text-sm font-semibold tabular-nums">
+                      <span className="text-green-600">
+                        +{currencySymbol}{manualIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                      <span className="text-muted-foreground"> / </span>
+                      <span className="text-red-600">
+                        −{currencySymbol}{manualExpense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </TableCell>
+                    <TableCell />
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
           )}
         </div>
       </CardContent>
