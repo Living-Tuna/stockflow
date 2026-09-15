@@ -159,7 +159,7 @@ function LocalSidebarNavMenu() {
                   </Link>
                 </SidebarMenuButton>
                 {hasChildren && sidebarState === 'expanded' && isExpanded && (
-                  <SidebarMenuSub className="ml-[calc(theme(spacing.3)+theme(spacing.5)+theme(spacing.3))] border-l-2 border-sidebar-primary/40 pl-3">
+                  <SidebarMenuSub className="ml-11 border-l-2 border-sidebar-primary/40 pl-3">
                     {link.children!.map((child) => {
                       const childActive = childIsActive(pathname, search, link.children!, child);
                       return (
@@ -250,7 +250,7 @@ function LocalSidebarNavInner() {
         </div>
       </SidebarHeader>
       <SidebarContent className="pt-2">
-        <ScrollArea className="flex-1" scrollBarClassName="bg-sidebar-primary/40 hover:bg-sidebar-primary/70">
+        <ScrollArea className="flex-1" scrollBarClassName="bg-primary/60 hover:bg-primary">
           <Suspense fallback={null}>
             <LocalSidebarNavMenu />
           </Suspense>
