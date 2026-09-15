@@ -29,7 +29,19 @@ export const NAV_LINK_GROUPS: NavLinkGroup[] = [
     title: "Overview",
     links: [
       { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, description: 'Sales & business snapshot' },
-      { href: '/admin/billing', label: 'Billing', icon: DollarSign, description: 'Create invoices & bills' },
+      {
+        href: '/admin/billing',
+        label: 'Billing',
+        icon: DollarSign,
+        description: 'Transactions & bills',
+        children: [
+          { href: '/admin/billing', label: 'Bill History', secondary: 'View past transactions' },
+          { href: '/admin/billing?view=ledger', label: 'Inventory Ledger', secondary: 'Stock movement report' },
+          { href: '/admin/billing?action=new&mode=sell', label: 'New Sales Bill', secondary: 'Create a sale invoice' },
+          { href: '/admin/billing?action=new&mode=buy', label: 'New Purchase Bill', secondary: 'Record purchases' },
+          { href: '/admin/billing?action=new&mode=return', label: 'Return Entry', secondary: 'Process returns' },
+        ],
+      },
     ],
   },
   {
