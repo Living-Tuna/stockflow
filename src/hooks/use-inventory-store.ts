@@ -3,7 +3,8 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage, type PersistOptions } from 'zustand/middleware';
-import type { Product, Bill, BillItem, Category, User, Store, UserProfile, SubscriptionPlan, ProductSKU, ProductVariant, ChatMessage, Company, Customer, DateRangeReportSummary, ProductAnalytics, AccountsReceivableSummary, AccountsPayableSummary, MonthlyProductFinancials, CashFlowSummary, BalanceSheetSummary, TimePeriod, ProductRevenueData, Staff, FinancialSummary, TodaysFinancialSummary, ProductLedgerEntry, StockLayer, BillMode } from '@/types';
+import type { Product, Bill, BillItem, Category, User, Store, UserProfile, SubscriptionPlan, ProductSKU, ProductVariant, ChatMessage, Company, Customer, DateRangeReportSummary, ProductAnalytics, AccountsReceivableSummary, AccountsPayableSummary, MonthlyProductFinancials, CashFlowSummary, BalanceSheetSummary, TimePeriod, ProductRevenueData, Staff, FinancialSummary, TodaysFinancialSummary, ProductLedgerEntry, StockLayer, BillMode, ManualEntry } from '@/types';
+import { getDailyLedgers, type DailyLedger } from '@/lib/ledger';
 import { v4 as uuidv4 } from 'uuid';
 import { format, subDays, startOfDay, endOfDay, isToday, isThisWeek, isThisMonth, isThisYear, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subYears } from 'date-fns';
 import { DEFAULT_CATEGORIES, SUBSCRIPTION_PLANS, SUBSCRIPTION_PLAN_IDS, DEFAULT_COMPANY_NAME, DEFAULT_CURRENCY_CODE, LOW_STOCK_THRESHOLD } from '@/lib/constants';
@@ -11,7 +12,8 @@ import { roundMoney, roundQuantity } from '@/lib/units';
 import { toast } from './use-toast';
 
 // Re-export types for convenience in other files
-export type { Product, Bill, BillItem, Category, User, Store, UserProfile, SubscriptionPlan, ProductSKU, BillMode, ChatMessage, StockLayer, ProductOption, FinancialSummary, TodaysFinancialSummary, ProductLedgerEntry, Company, Customer, DateRangeReportSummary, ProductAnalytics, AccountsReceivableSummary, AccountsPayableSummary, MonthlyProductFinancials, CashFlowSummary, BalanceSheetSummary, TimePeriod, ProductRevenueData, Staff } from '@/types';
+export type { Product, Bill, BillItem, Category, User, Store, UserProfile, SubscriptionPlan, ProductSKU, BillMode, ChatMessage, StockLayer, ProductOption, FinancialSummary, TodaysFinancialSummary, ProductLedgerEntry, Company, Customer, DateRangeReportSummary, ProductAnalytics, AccountsReceivableSummary, AccountsPayableSummary, MonthlyProductFinancials, CashFlowSummary, BalanceSheetSummary, TimePeriod, ProductRevenueData, Staff, ManualEntry } from '@/types';
+export type { DailyLedger } from '@/lib/ledger';
 
 
 // #region Types and Interfaces
@@ -40,6 +42,15 @@ interface InventoryState {
   stores: Store[];
   userProfile: UserProfile;
   messagesByStore: Record<string, ChatMessage[]>;
+
+  // Manual Accounting Entries (additional income / expenses / opening balances)
+  manualEntries: ManualEntry[];
+
+  // Manual Entry Actions
+  fetchManualEntries: (companyId: string) => Promise<void>;
+  addManualEntry: (entryData: Omit<ManualEntry, 'id' | 'companyId' | 'createdAt'>, companyId: string) => Promise<ManualEntry | null>;
+  updateManualEntry: (entryId: string, entryData: Partial<Omit<ManualEntry, 'id' | 'companyId' | 'createdAt'>>, companyId: string) => Promise<ManualEntry | null>;
+  deleteManualEntry: (entryId: string, companyId: string) => Promise<boolean>;
 
   // Product Actions
   fetchProducts: (companyId: string) => Promise<void>;
@@ -137,6 +148,8 @@ interface InventoryState {
   getAccountsReceivableSummary: (companyId?: string, storeId?: string) => AccountsReceivableSummary;
   getAccountsPayableSummary: (companyId?: string, storeId?: string) => AccountsPayableSummary;
   getCashFlowSummaryByDateRange: (startDate?: Date, endDate?: Date, companyId?: string, storeId?: string) => CashFlowSummary;
+  getDailyLedger: (date: Date | string, companyId?: string, storeId?: string) => DailyLedger | undefined;
+  getDailyLedgersByDateRange: (startDate?: Date | string, endDate?: Date | string, companyId?: string, storeId?: string) => DailyLedger[];
   getBalanceSheetSummary: (companyId?: string, storeId?: string) => BalanceSheetSummary;
 }
 
@@ -161,6 +174,7 @@ const storeInitialState = {
   userProfile: { ...defaultUserProfile },
   messagesByStore: {},
   draftBill: null,
+  manualEntries: [],
 };
 // #endregion
 
@@ -687,6 +701,109 @@ export const useInventoryStore = create<InventoryState>()(
         } catch (error) {
           console.error("Error in fetchCustomers:", error);
           set({ customers: [] });
+        }
+      },
+      // --- Manual Entry Actions ---
+      fetchManualEntries: async (companyId) => {
+        if (!companyId) return console.warn("fetchManualEntries: companyId is required");
+        if (isLocalCompany(companyId)) {
+          set((state) => ({ manualEntries: state.manualEntries.filter(entry => entry.companyId === companyId) }));
+          return;
+        }
+        try {
+          const response = await fetch(`/api/manual-entries?companyId=${companyId}`);
+          if (!response.ok) throw new Error(`Failed to fetch manual entries: ${response.statusText}`);
+          const result = await response.json();
+          if (result.success && Array.isArray(result.data)) {
+            set({ manualEntries: result.data || [] });
+          } else {
+            console.error("Failed to fetch manual entries or data format incorrect:", result.message);
+            set({ manualEntries: [] });
+          }
+        } catch (error) {
+          console.error("Error in fetchManualEntries:", error);
+          set({ manualEntries: [] });
+        }
+      },
+      addManualEntry: async (entryData, companyId) => {
+        if (!companyId || !entryData) return null;
+        if (isLocalCompany(companyId)) {
+          const newEntry: ManualEntry = {
+            id: `entry_local_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            companyId,
+            storeId: entryData.storeId || null,
+            date: entryData.date,
+            entryType: entryData.entryType,
+            category: entryData.category,
+            amount: Number(entryData.amount) || 0,
+            note: entryData.note,
+            createdAt: new Date().toISOString(),
+          };
+          set((state) => ({ manualEntries: [newEntry, ...state.manualEntries] }));
+          return newEntry;
+        }
+        try {
+          const response = await fetch('/api/manual-entries', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...entryData, companyId }),
+          });
+          const result = await response.json();
+          if (!result.success || !result.data) throw new Error(result.message || 'Failed to add manual entry.');
+          const newEntry = result.data as ManualEntry;
+          set((state) => ({ manualEntries: [newEntry, ...state.manualEntries] }));
+          return newEntry;
+        } catch (error) {
+          console.error("Error in addManualEntry:", error);
+          return null;
+        }
+      },
+      updateManualEntry: async (entryId, entryData, companyId) => {
+        if (!entryId || !companyId) return null;
+        if (isLocalCompany(companyId)) {
+          let updated: ManualEntry | null = null;
+          set((state) => ({
+            manualEntries: state.manualEntries.map(item => {
+              if (item.id === entryId) {
+                updated = { ...item, ...entryData };
+                return updated;
+              }
+              return item;
+            }),
+          }));
+          return updated;
+        }
+        try {
+          const response = await fetch(`/api/manual-entries/${entryId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...entryData, companyId }),
+          });
+          const result = await response.json();
+          if (!result.success || !result.data) throw new Error(result.message || 'Failed to update manual entry.');
+          const updatedEntry = result.data as ManualEntry;
+          set((state) => ({ manualEntries: state.manualEntries.map(item => item.id === entryId ? updatedEntry : item) }));
+          return updatedEntry;
+        } catch (error) {
+          console.error("Error in updateManualEntry:", error);
+          return null;
+        }
+      },
+      deleteManualEntry: async (entryId, companyId) => {
+        if (!entryId || !companyId) return false;
+        if (isLocalCompany(companyId)) {
+          set((state) => ({ manualEntries: state.manualEntries.filter(item => item.id !== entryId) }));
+          return true;
+        }
+        try {
+          const response = await fetch(`/api/manual-entries/${entryId}?companyId=${companyId}`, { method: 'DELETE' });
+          const result = await response.json();
+          if (!result.success) throw new Error(result.message || 'Failed to delete manual entry.');
+          set((state) => ({ manualEntries: state.manualEntries.filter(item => item.id !== entryId) }));
+          return true;
+        } catch (error) {
+          console.error("Error in deleteManualEntry:", error);
+          return false;
         }
       },
       fetchStaff: async (companyId) => {
@@ -1553,6 +1670,18 @@ export const useInventoryStore = create<InventoryState>()(
         const cashInflows = bills.filter(b => b.type === 'sell' && !b.isEstimate && b.paymentStatus === 'paid').reduce((sum, b) => sum + b.totalAmount, 0);
         const cashOutflows = bills.filter(b => b.type === 'buy' && b.paymentStatus === 'paid').reduce((sum, b) => sum + b.totalAmount, 0);
         return { cashInflows, cashOutflows, netCashFlow: cashInflows - cashOutflows };
+      },
+      getDailyLedger: (date, companyId, storeId) => {
+        const { bills, manualEntries } = get();
+        const dateKey = typeof date === 'string' ? date : format(date, 'yyyy-MM-dd');
+        const ledgers = getDailyLedgers(bills, manualEntries, dateKey, dateKey, { companyId, storeId });
+        return ledgers[0];
+      },
+      getDailyLedgersByDateRange: (startDate, endDate, companyId, storeId) => {
+        const { bills, manualEntries } = get();
+        const fromKey = startDate ? (typeof startDate === 'string' ? startDate : format(startDate, 'yyyy-MM-dd')) : format(new Date(0), 'yyyy-MM-dd');
+        const toKey = endDate ? (typeof endDate === 'string' ? endDate : format(endDate, 'yyyy-MM-dd')) : format(new Date(), 'yyyy-MM-dd');
+        return getDailyLedgers(bills, manualEntries, fromKey, toKey, { companyId, storeId });
       },
       getBalanceSheetSummary: (companyId, storeId) => {
         const { products, getAccountsReceivableSummary, getAccountsPayableSummary, getReportSummaryByDateRange } = get();

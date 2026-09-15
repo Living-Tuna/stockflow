@@ -4,7 +4,7 @@
 import React, { useState, Suspense, useMemo } from 'react';
 import { PageTitle } from '@/components/common/page-title';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BookOpen, CalendarDays, Loader2, FileText, BarChart2, Wallet, Scale, PrinterIcon, Building } from 'lucide-react';
+import { BookOpen, CalendarDays, Loader2, FileText, BarChart2, Wallet, Scale, PrinterIcon, Building, Sunrise } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, format, startOfQuarter, endOfQuarter, subQuarters, getYear } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,13 +20,14 @@ import { AccountsReceivableCard } from '@/components/accounting/AccountsReceivab
 import { AccountsPayableCard } from '@/components/accounting/AccountsPayableCard';
 import { CashFlowStatement } from '@/components/accounting/CashFlowStatement';
 import { BalanceSheet } from '@/components/accounting/BalanceSheet';
+import { DailyLedger } from '@/components/accounting/DailyLedger';
 import { generateReportPrintContent, triggerPrint } from '@/lib/print-utils';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
 import type { Store } from '@/types';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 type TimePeriodPreset = 'thisMonth' | 'lastMonth' | 'thisQuarter' | 'lastQuarter' | 'thisYear' | 'lastYear' | 'thisFY' | 'lastFY' | 'all' | 'custom';
-type AccountingTab = 'pnl' | 'cashflow' | 'balance-sheet' | 'gst';
+type AccountingTab = 'pnl' | 'cashflow' | 'balance-sheet' | 'gst' | 'ledger';
 
 function getFiscalYearDates(date: Date, offsetYears: number = 0): { from: Date, to: Date } {
   const currentYear = date.getFullYear();
@@ -107,6 +108,7 @@ function AccountingPageContent() {
         case 'cashflow': reportTitle = 'Cash Flow Statement'; break;
         case 'balance-sheet': reportTitle = 'Simplified Financial Position'; break;
         case 'gst': reportTitle = 'GST Report'; break;
+        case 'ledger': reportTitle = 'Daily Cash Ledger'; break;
         default: reportTitle = 'Accounting Report';
     }
 
@@ -178,12 +180,18 @@ function AccountingPageContent() {
       <PageTitle title="Accounting & Reports" icon={BookOpen} actions={pageActions} />
 
       <Tabs defaultValue="pnl" value={activeTab} onValueChange={(v) => setActiveTab(v as AccountingTab)} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:w-auto md:grid-cols-4 no-print">
+<TabsList className="grid w-full grid-cols-2 md:w-auto md:grid-cols-5 no-print">
           <TabsTrigger value="pnl" className="gap-2"><BarChart2 size={16}/>P&L Statement</TabsTrigger>
+          <TabsTrigger value="ledger" className="gap-2"><Sunrise size={16}/>Daily Ledger</TabsTrigger>
           <TabsTrigger value="cashflow" className="gap-2"><Wallet size={16}/>Cash Flow</TabsTrigger>
           <TabsTrigger value="balance-sheet" className="gap-2"><Scale size={16}/>Balance Sheet</TabsTrigger>
           <TabsTrigger value="gst" className="gap-2"><FileText size={16}/>GST Report</TabsTrigger>
         </TabsList>
+        <div id="ledger-report-content">
+            <TabsContent value="ledger" className="mt-6">
+                <DailyLedger startDate={dateRange?.from} endDate={dateRange?.to} storeId={selectedStoreId} />
+            </TabsContent>
+        </div>
         <div id="pnl-report-content">
             <TabsContent value="pnl" className="mt-6">
                 <ProfitLossStatement startDate={dateRange?.from} endDate={dateRange?.to} storeId={selectedStoreId} />

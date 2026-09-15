@@ -116,6 +116,20 @@ export interface Category {
 export type SubscriptionType = 'monthly' | 'yearly';
 export type PaymentStatus = 'pending' | 'paid';
 
+export type ManualEntryType = 'income' | 'expense' | 'opening_balance';
+
+export interface ManualEntry {
+  id: string;
+  companyId: string;
+  storeId?: string | null;
+  date: string; // ISO date (YYYY-MM-DD)
+  entryType: ManualEntryType;
+  category?: string;
+  amount: number;
+  note?: string;
+  createdAt?: string;
+}
+
 export interface Company {
   id: string;
   name: string;
