@@ -76,7 +76,7 @@ function SidebarNavMenu() {
         <React.Fragment key={group.title || `group-${groupIndex}`}>
           {group.title && sidebarState === 'expanded'
             ? (
-              <SidebarGroupLabel className="h-8 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              <SidebarGroupLabel className="h-8 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
                 {group.title}
               </SidebarGroupLabel>
             )
@@ -96,8 +96,8 @@ function SidebarNavMenu() {
                 tooltip={isDisabledBySubscription ? 'Upgrade to access this feature' : link.label}
                 aria-disabled={isDisabledBySubscription}
                 className={cn(
-                  "h-12 text-base font-medium text-sidebar-foreground/80 hover:text-secondary data-[active=true]:text-white data-[active=true]:font-bold data-[active=true]:bg-secondary",
-                  isDisabledBySubscription && "opacity-50 cursor-not-allowed !bg-transparent !text-sidebar-foreground/50 hover:!text-sidebar-foreground/50"
+                  "h-12 text-base font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:font-bold",
+                  isDisabledBySubscription && "opacity-50 cursor-not-allowed !bg-transparent !text-sidebar-foreground/60 hover:!bg-transparent hover:!text-sidebar-foreground/60"
                 )}
               >
                 <Link
@@ -106,9 +106,9 @@ function SidebarNavMenu() {
                   onClick={(e) => { if (isDisabledBySubscription) e.preventDefault(); }}
                 >
                   <span className="relative">
-                    <link.icon className={cn("h-5 w-5 shrink-0", (isActive || isChildActive) && "text-white")} />
+                    <link.icon className={cn("h-5 w-5 shrink-0", (isActive || isChildActive) && "text-sidebar-primary-foreground")} />
                     {isChildActive && (
-                      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-secondary" />
+                      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-sidebar-primary" />
                     )}
                   </span>
                   {sidebarState === 'expanded' && (
@@ -116,8 +116,8 @@ function SidebarNavMenu() {
                       <span className="truncate">{link.label}</span>
                       {link.description && (
                         <span className={cn(
-                          "truncate text-xs font-normal text-muted-foreground/70",
-                          (isActive || isChildActive) && "font-medium text-white/80"
+                          "truncate text-xs font-normal text-sidebar-foreground/60",
+                          (isActive || isChildActive) && "font-medium text-sidebar-primary-foreground/90"
                         )}>
                           {link.description}
                         </span>
@@ -133,7 +133,7 @@ function SidebarNavMenu() {
                         setCollapsedGroups((prev) => ({ ...prev, [link.href]: isExpanded }));
                       }}
                     >
-                      <ChevronDown className={cn("h-4 w-4 text-muted-foreground/60 transition-transform", isExpanded && "rotate-180")} />
+                      <ChevronDown className={cn("h-4 w-4 text-sidebar-foreground/60 transition-transform", isExpanded && "rotate-180")} />
                     </span>
                   )}
                 </Link>
@@ -144,7 +144,7 @@ function SidebarNavMenu() {
               <SidebarMenuItem key={link.href}>
                 {menuItemContent}
                 {hasChildren && sidebarState === 'expanded' && isExpanded && (
-                  <SidebarMenuSub className="ml-[calc(theme(spacing.3)+theme(spacing.5)+theme(spacing.3))] border-l-2 border-secondary/30 pl-3">
+                  <SidebarMenuSub className="ml-[calc(theme(spacing.3)+theme(spacing.5)+theme(spacing.3))] border-l-2 border-sidebar-primary/40 pl-3">
                     {link.children!.map((child) => {
                       const childActive = childIsActive(pathname, search, link.children!, child);
                       const childDisabled = child.disabled || isDisabledBySubscriptionFor(child);
@@ -154,7 +154,7 @@ function SidebarNavMenu() {
                             asChild
                             isActive={childActive}
                             className={cn(
-                              "py-2 data-[active=true]:bg-secondary data-[active=true]:text-white data-[active=true]:font-bold",
+                              "py-2 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:font-bold",
                               childDisabled && "opacity-50 pointer-events-none"
                             )}
                           >
@@ -162,7 +162,7 @@ function SidebarNavMenu() {
                               <span className="flex flex-col gap-0.5 py-0.5">
                                 <span className="truncate text-sm font-medium">{child.label}</span>
                                 {child.secondary && sidebarState === 'expanded' && (
-                                  <span className={cn("truncate text-xs font-normal text-muted-foreground/70", childActive && "font-medium text-white/80")}>
+                                  <span className={cn("truncate text-xs font-normal text-sidebar-foreground/60", childActive && "font-medium text-sidebar-primary-foreground/90")}>
                                     {child.secondary}
                                   </span>
                                 )}
@@ -199,7 +199,7 @@ function SidebarNavInner() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 text-secondary hover:text-secondary/80 hover:bg-sidebar-accent"
+                  className="h-10 w-10 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                   onClick={toggleSidebar}
                   aria-label="Expand sidebar"
                 >
@@ -216,7 +216,7 @@ function SidebarNavInner() {
                     <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 hidden md:flex text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                    className="h-9 w-9 hidden md:flex text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                     onClick={toggleSidebar}
                     aria-label="Collapse sidebar"
                     >
