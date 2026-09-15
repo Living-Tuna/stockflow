@@ -2,13 +2,10 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
-import { APP_NAME } from '@/lib/constants';
-import { Loader2 } from 'lucide-react';
 import { LocalAppShell } from '@/components/layout/local-app-shell';
 import { AppDataProvider, DataReadyGate } from '@/contexts/app-data-context';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
-import { useThemeLogo } from '@/hooks/use-theme-logo';
+import { BrandLoading } from '@/components/common/brand-loading';
 
 const LOCAL_CREDS_KEY = "stockflow_local_creds";
 const SHARED_AUTH_TOKEN_KEY = "appAuthToken";
@@ -24,7 +21,6 @@ export default function LocalLayout({
   const [initStatus, setInitStatus] = useState("Initializing Local Mode...");
   const fetchCompanyProfile = useInventoryStore((state) => state.fetchCompanyProfile);
   const fetchStores = useInventoryStore((state) => state.fetchStores);
-  const themeLogo = useThemeLogo();
 
   useEffect(() => {
     const setupLocalEnv = async () => {
@@ -69,18 +65,8 @@ export default function LocalLayout({
 
   if (isInitializing) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4 text-center">
-        <Image
-          src={themeLogo}
-          alt={`${APP_NAME} Logo`}
-          width={80}
-          height={80}
-          className="mb-6 animate-pulse"
-        />
-        <div className="flex items-center gap-2 text-lg text-muted-foreground">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>{initStatus}</span>
-        </div>
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <BrandLoading size={88} text={initStatus} />
       </div>
     );
   }
@@ -89,18 +75,8 @@ export default function LocalLayout({
     <AppDataProvider>
       <DataReadyGate
         fallback={
-          <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4">
-            <Image
-              src={themeLogo}
-              alt={`${APP_NAME} Logo`}
-              width={80}
-              height={80}
-              className="mb-6 animate-pulse"
-            />
-            <div className="flex items-center gap-2 text-lg text-muted-foreground">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span>Loading Local Data...</span>
-            </div>
+          <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+            <BrandLoading size={88} text="Loading Local Data..." />
           </div>
         }
       >

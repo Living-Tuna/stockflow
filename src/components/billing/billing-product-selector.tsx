@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { CornerDownLeft, Barcode as BarcodeIconLucide, Info, Loader2, Edit3, Download, AlertCircle } from 'lucide-react';
+import { CornerDownLeft, Barcode as BarcodeIconLucide, Info, Edit3, Download, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { ProductSearchInput, type ProductSearchSuggestion } from './product-search-input';
 import { Product, ProductSKU, BillMode } from '@/types';

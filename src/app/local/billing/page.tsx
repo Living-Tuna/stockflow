@@ -10,7 +10,8 @@ import { BillHistoryTable, type TimePeriodFilterOption } from '@/components/hist
 import { InventoryLedgerTable } from '@/components/billing/inventory-ledger-table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle, History as HistoryIcon, ShoppingBag, Send, RotateCcw, ListChecks, BarChart2, CalendarDays, Loader2 } from 'lucide-react';
+import { PlusCircle, History as HistoryIcon, ShoppingBag, Send, RotateCcw, ListChecks, BarChart2, CalendarDays } from 'lucide-react';
+import { LogoSpinner } from '@/components/common/logo-spinner';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
 import { useAppData } from '@/contexts/app-data-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -194,7 +195,7 @@ function BillingContent() {
 
 const LoadingFallback = () => (
   <div className="flex-1 flex flex-col items-center justify-center p-6 gap-3">
-    <Loader2 className="h-8 w-8 text-primary animate-spin" />
+    <LogoSpinner size={32} />
     <p className="text-muted-foreground">Loading Billing Information...</p>
   </div>
 );

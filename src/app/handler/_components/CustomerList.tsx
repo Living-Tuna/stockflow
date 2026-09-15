@@ -9,9 +9,10 @@ import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Loader2, Check, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { LogoSpinner } from '@/components/common/logo-spinner';
 
 interface CustomerData {
   company: Company;
@@ -181,7 +182,7 @@ export function CustomerList() {
                         onClick={() => handleMarkAsPaid(company.id, company.subscriptionType || 'monthly')}
                         disabled={isUpdating}
                       >
-                         {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                         {isUpdating && <LogoSpinner size={16} className="mr-2" alt="" />}
                         Mark as Paid
                       </Button>
                   ) : (

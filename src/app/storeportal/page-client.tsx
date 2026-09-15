@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, LogIn, Loader2, Building, Fingerprint } from 'lucide-react';
+import { KeyRound, LogIn, Building, Fingerprint } from 'lucide-react';
 import Link from 'next/link';
 import { BrandMark } from '@/components/common/brand-mark';
 

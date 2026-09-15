@@ -206,6 +206,20 @@ html {
    @apply shadow-lg hover:shadow-xl dark:hover:shadow-primary/10 transition-all-fast;
 }
 
+/* Rotating logo loader — slow first, then fast, then slow again, looped */
+@keyframes logo-rotate-slow-fast-slow {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.animate-logo-loading {
+  animation: logo-rotate-slow-fast-slow 2.6s ease-in-out infinite;
+  will-change: transform;
+}
+
 @media print {
   .no-print {
     display: none !important;

@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { verifyHandlerAccess } from '../actions';
 import { CustomerList } from './CustomerList';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldAlert, LogIn } from 'lucide-react';
+import { ShieldAlert, LogIn } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { LogoSpinner } from '@/components/common/logo-spinner';
 import Link from 'next/link';
 
 const SHARED_AUTH_TOKEN_KEY = "appAuthToken";
@@ -65,7 +66,7 @@ export function HandlerAuth() {
         </p>
         <div className="flex justify-center">
           {isPending ? (
-            <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+            <LogoSpinner size={20} alt="Checking..." />
           ) : (
             <Button asChild>
               <Link href="/">

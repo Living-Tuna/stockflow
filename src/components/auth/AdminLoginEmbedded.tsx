@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { APP_NAME } from '@/lib/constants';
 import Image from 'next/image';
-import { LogIn, XCircle, Mail, KeyRound, Loader2 } from 'lucide-react';
+import { LogIn, XCircle, Mail, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { BrandLoading } from '@/components/common/brand-loading';
 import { useThemeLogo } from '@/hooks/use-theme-logo';
 
 declare global {
@@ -175,8 +176,7 @@ export function AdminLoginEmbedded({ onLoginSuccess, onCancel, onSwitchToSignup 
   if (!hasMounted) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-muted/40 backdrop-blur-sm">
-        <Loader2 className="h-10 w-10 text-primary animate-spin mb-3" />
-        <p className="text-muted-foreground">Loading Admin...</p>
+        <BrandLoading size={40} text="Loading Admin..." />
       </div>
     );
   }

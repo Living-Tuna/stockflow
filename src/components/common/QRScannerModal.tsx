@@ -5,8 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, QrCode, AlertCircle, Camera } from 'lucide-react';
+import { QrCode, AlertCircle, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LogoSpinner } from '@/components/common/logo-spinner';
 
 interface QRScannerModalProps {
     isOpen: boolean;
@@ -246,7 +247,7 @@ export function QRScannerModal({
                     >
                         {isLoading ? (
                             <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <LogoSpinner size={16} className="mr-2" alt="" />
                                 Processing...
                             </>
                         ) : (

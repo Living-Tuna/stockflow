@@ -10,7 +10,7 @@ import { BillHistoryTable, type TimePeriodFilterOption } from '@/components/hist
 import { InventoryLedgerTable } from '@/components/billing/inventory-ledger-table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle, History as HistoryIcon, ShoppingBag, Send, RotateCcw, Building, ListChecks, BarChart2, CalendarDays, Loader2 } from 'lucide-react';
+import { PlusCircle, History as HistoryIcon, ShoppingBag, Send, RotateCcw, Building, ListChecks, BarChart2, CalendarDays } from 'lucide-react';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
 import { useAppData } from '@/contexts/app-data-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

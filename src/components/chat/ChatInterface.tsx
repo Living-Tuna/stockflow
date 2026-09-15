@@ -9,7 +9,8 @@ import { useInventoryStore } from '@/hooks/use-inventory-store';
 import { useAppData } from '@/contexts/app-data-context';
 import type { ChatMessage } from '@/types';
 import { ChatMessageItem } from './ChatMessageItem';
-import { Send, Loader2 } from 'lucide-react'; // Added Loader2
+import { LogoSpinner } from '@/components/common/logo-spinner';
+import { Send } from 'lucide-react';
 
 interface ChatInterfaceProps {
   storeId: string;
@@ -100,7 +101,7 @@ export function ChatInterface({ storeId, currentUserId, currentUserName }: ChatI
       <ScrollArea className="flex-1 p-4 space-y-4" ref={scrollAreaRef}>
         {isLoadingMessages ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <Loader2 className="h-8 w-8 animate-spin mb-2" />
+            <LogoSpinner size={32} className="mb-2" />
             <p>Loading messages...</p>
           </div>
         ) : messages.length === 0 ? (
@@ -124,7 +125,7 @@ export function ChatInterface({ storeId, currentUserId, currentUserName }: ChatI
             disabled={!currentCompanyId || isLoadingMessages || isSending}
           />
           <Button type="submit" size="icon" aria-label="Send message" disabled={!currentCompanyId || isLoadingMessages || isSending || !newMessage.trim()}>
-            {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+            {isSending ? <LogoSpinner size={20} className="h-5 w-5" alt="" /> : <Send className="h-5 w-5" />}
           </Button>
         </div>
       </form>

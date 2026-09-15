@@ -8,11 +8,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { LogoSpinner } from '@/components/common/logo-spinner';
 import { useAppData } from '@/contexts/app-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { SUBSCRIPTION_PLANS, SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
 import type { SubscriptionPlan, UserProfile, Company } from '@/types';
-import { CheckCircle, Edit3, Save, User, BadgeCheck, Mail, Building, Phone, FileText, Image as ImageIcon, PenLine, Info, ExternalLink, Loader2 } from 'lucide-react';
+import { CheckCircle, Edit3, Save, User, BadgeCheck, Mail, Building, Phone, FileText, Image as ImageIcon, PenLine, Info, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import NextImage from 'next/image'; 
@@ -94,7 +95,7 @@ const EditableProfileField: React.FC<EditableProfileFieldProps> = ({
         )}
         {isEditing ? (
           <Button onClick={handleSave} size="sm" disabled={disabled || isSaving}>
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {isSaving ? <LogoSpinner size={16} className="mr-2" alt="" /> : <Save className="mr-2 h-4 w-4" />}
             {isSaving ? 'Saving...' : 'Save'}
           </Button>
         ) : (
@@ -366,7 +367,7 @@ export default function ProfilePage() {
                     onClick={() => handleSubscriptionSelect(plan.id)}
                     disabled={currentActivePlan?.id === plan.id || isUpdatingSubscription || (!!userProfile.pendingSubscriptionId && userProfile.pendingSubscriptionId !== plan.id)}
                     >
-                    {isUpdatingSubscription && currentActivePlan?.id !== plan.id && userProfile.pendingSubscriptionId !== plan.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {isUpdatingSubscription && currentActivePlan?.id !== plan.id && userProfile.pendingSubscriptionId !== plan.id ? <LogoSpinner size={16} className="mr-2" alt="" /> : null}
                     {currentActivePlan?.id === plan.id ? 'Current Plan' : 
                         userProfile.pendingSubscriptionId === plan.id ? 'Pending Approval' :
                         (isUpdatingSubscription ? 'Updating...' : 'Choose Plan')}

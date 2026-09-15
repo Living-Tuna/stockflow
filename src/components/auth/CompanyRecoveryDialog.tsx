@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldAlert, Building, PenLine, Phone, FileText, Info, Save, LogOut } from 'lucide-react';
+import { ShieldAlert, Building, PenLine, Phone, FileText, Info, Save, LogOut } from 'lucide-react';
 import type { Company } from '@/types';
 
 const recoveryFormSchema = z.object({

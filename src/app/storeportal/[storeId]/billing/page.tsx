@@ -8,7 +8,7 @@ import { BillingForm } from '@/components/billing/billing-form';
 import type { Store, BillMode } from '@/types';
 import { PageTitle } from '@/components/common/page-title';
 import { Button } from '@/components/ui/button';
-import { LogOut, ShoppingCart, MessageSquare, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import { LogOut, ShoppingCart, MessageSquare, Trash2, AlertTriangle } from 'lucide-react';
 import { APP_NAME } from '@/lib/constants';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';

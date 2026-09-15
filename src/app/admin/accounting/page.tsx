@@ -4,7 +4,7 @@
 import React, { useState, Suspense, useMemo } from 'react';
 import { PageTitle } from '@/components/common/page-title';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BookOpen, CalendarDays, Loader2, FileText, BarChart2, Wallet, Scale, PrinterIcon, Building, Sunrise } from 'lucide-react';
+import { BookOpen, CalendarDays, FileText, BarChart2, Wallet, Scale, PrinterIcon, Building, Sunrise } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, format, startOfQuarter, endOfQuarter, subQuarters, getYear } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

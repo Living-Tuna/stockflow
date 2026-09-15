@@ -11,8 +11,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Barcode as BarcodeIconLucide, AlertCircle, Camera, X } from 'lucide-react';
+import { Barcode as BarcodeIconLucide, AlertCircle, Camera, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LogoSpinner } from '@/components/common/logo-spinner';
 
 interface UnifiedScannerModalProps {
     isOpen: boolean;
@@ -194,7 +195,7 @@ export function UnifiedScannerModal({
                             <div className="relative h-20 w-full flex items-center justify-center overflow-hidden rounded-md border-2 border-dashed border-primary/50 bg-muted/30">
                                 <div className="absolute top-0 left-0 h-full w-1 bg-primary animate-scan-line"></div>
                                 <BarcodeIconLucide className={cn("h-10 w-10 text-primary transition-opacity duration-300", isLoading ? "opacity-30" : "opacity-70")} />
-                                {isLoading && <Loader2 className="absolute h-8 w-8 text-primary animate-spin" />}
+                                {isLoading && <LogoSpinner size={32} className="absolute" />}
                             </div>
 
                             <Input
@@ -310,7 +311,7 @@ export function UnifiedScannerModal({
                             onClick={() => handleSubmit()}
                             disabled={isLoading || !inputValue.trim()}
                         >
-                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {isLoading ? <LogoSpinner size={16} className="mr-2" alt="" /> : null}
                             {isLoading ? 'Processing...' : 'Submit'}
                         </Button>
                     )}

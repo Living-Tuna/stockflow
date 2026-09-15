@@ -14,10 +14,7 @@ import { CallToActionSection } from '@/components/landing/CallToActionSection';
 import { DownloadSection } from '@/components/landing/DownloadSection';
 import { AdminLoginEmbedded } from '@/components/auth/AdminLoginEmbedded';
 import { AdminSignupEmbedded } from '@/components/auth/AdminSignupEmbedded';
-import Image from 'next/image';
-import { APP_NAME } from '@/lib/constants';
-import { Loader2 } from 'lucide-react';
-import { useThemeLogo } from '@/hooks/use-theme-logo';
+import { BrandLoading } from '@/components/common/brand-loading';
 
 type UIMode = 'landing' | 'adminLogin' | 'adminSignup';
 
@@ -29,7 +26,6 @@ export default function HomePage() {
   const [uiMode, setUiMode] = useState<UIMode>('landing');
   const [hasMounted, setHasMounted] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(true);
-  const themeLogo = useThemeLogo();
 
   useEffect(() => {
     setHasMounted(true);
@@ -77,18 +73,8 @@ export default function HomePage() {
 
   if (!hasMounted || isRedirecting) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4 text-center">
-        <Image
-          src={themeLogo}
-          alt={`${APP_NAME} Logo`}
-          width={80}
-          height={80}
-          className="mb-6 animate-pulse"
-        />
-        <div className="flex items-center gap-2 text-lg text-muted-foreground">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading...</span>
-        </div>
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <BrandLoading size={88} text="Loading..." />
       </div>
     );
   }

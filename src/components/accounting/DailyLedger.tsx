@@ -15,13 +15,13 @@ import { format, addDays, startOfDay } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import type { ManualEntry, ManualEntryType } from '@/types';
+import { LogoSpinner } from '@/components/common/logo-spinner';
 import {
   ArrowLeft,
   ArrowRight,
   CalendarDays,
   Check,
   Coins,
-  Loader2,
   Pencil,
   Plus,
   Sunrise,
@@ -266,7 +266,7 @@ export function DailyLedger({ startDate, endDate, storeId }: DailyLedgerProps) {
     return (
       <Card className="shadow-lg border-t-2 border-t-primary w-full max-w-5xl mx-auto">
         <CardContent className="flex items-center justify-center p-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <LogoSpinner size={24} />
         </CardContent>
       </Card>
     );
@@ -362,7 +362,7 @@ export function DailyLedger({ startDate, endDate, storeId }: DailyLedgerProps) {
                 className="w-48"
               />
               <Button size="sm" onClick={handleSetOpening} disabled={isSavingOpening}>
-                {isSavingOpening && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                {isSavingOpening && <LogoSpinner size={12} className="mr-1" alt="" />}
                 Save as opening
               </Button>
             </div>
@@ -409,7 +409,7 @@ export function DailyLedger({ startDate, endDate, storeId }: DailyLedgerProps) {
             </datalist>
             <Input placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
             <Button type="submit" disabled={isSaving} className="lg:col-span-1">
-              {isSaving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              {isSaving && <LogoSpinner size={16} className="mr-1" alt="" />}
               <Plus className="mr-1 h-4 w-4" /> Add
             </Button>
           </form>
@@ -470,7 +470,7 @@ export function DailyLedger({ startDate, endDate, storeId }: DailyLedgerProps) {
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
                               <Button size="sm" onClick={() => saveEditing(entry)} disabled={isSavingEdit} title="Save">
-                                {isSavingEdit && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                                {isSavingEdit && <LogoSpinner size={12} className="mr-1" alt="" />}
                                 <Check className="h-3.5 w-3.5" />
                               </Button>
                               <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} title="Cancel">

@@ -5,7 +5,8 @@ import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PageTitle } from '@/components/common/page-title';
 import { ProductForm } from '@/components/products/product-form';
-import { Loader2, PackagePlus } from 'lucide-react';
+import { PackagePlus } from 'lucide-react';
+import { LogoSpinner } from '@/components/common/logo-spinner';
 
 function AddProductPageContent() {
   const searchParams = useSearchParams();
@@ -25,7 +26,7 @@ function AddProductPageContent() {
 
 const LoadingFallback = () => (
   <div className="flex-1 flex flex-col items-center justify-center p-6 gap-3">
-    <Loader2 className="h-8 w-8 text-primary animate-spin" />
+    <LogoSpinner size={32} />
     <p className="text-muted-foreground">Loading Form...</p>
   </div>
 );

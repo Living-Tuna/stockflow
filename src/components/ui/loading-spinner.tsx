@@ -1,5 +1,6 @@
+"use client"
 import { cn } from "@/lib/utils"
-import { Loader2 } from "lucide-react"
+import { LogoSpinner } from "@/components/common/logo-spinner"
 
 interface LoadingSpinnerProps extends React.HTMLAttributes<HTMLDivElement> {
   size?: number
@@ -7,30 +8,18 @@ interface LoadingSpinnerProps extends React.HTMLAttributes<HTMLDivElement> {
   text?: string
 }
 
-export function LoadingSpinner({ 
-  size = 48, 
-  className, 
+export function LoadingSpinner({
+  size = 48,
+  className,
   text,
-  ...props 
+  ...props
 }: LoadingSpinnerProps) {
   return (
-    <div 
-      className={cn("flex flex-col items-center justify-center gap-4 min-h-[200px] w-full animate-in fade-in duration-300", className)} 
+    <div
+      className={cn("flex flex-col items-center justify-center gap-4 min-h-[200px] w-full animate-in fade-in duration-300", className)}
       {...props}
     >
-      <div className="relative">
-        <div 
-          className="absolute inset-0 rounded-full border-4 border-primary/20" 
-          style={{ width: size, height: size }}
-        />
-        <div 
-          className="rounded-full border-4 border-primary border-t-transparent animate-spin"
-          style={{ width: size, height: size }}
-        />
-        <div className="absolute inset-0 flex items-center justify-center">
-            <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
-        </div>
-      </div>
+      <LogoSpinner size={size} />
       {text && (
         <p className="text-muted-foreground text-sm font-medium animate-pulse">
           {text}

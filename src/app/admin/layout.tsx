@@ -4,15 +4,12 @@ import { AppShell } from '@/components/layout/app-shell';
 import { AppDataProvider, DataReadyGate } from '@/contexts/app-data-context';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import Image from 'next/image';
-import { APP_NAME } from '@/lib/constants';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
 import { AppBlocker } from '@/components/layout/AppBlocker';
 import { CompanyRecoveryDialog } from '@/components/auth/CompanyRecoveryDialog';
 import type { PaymentStatus } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { useThemeLogo } from '@/hooks/use-theme-logo';
+import { BrandLoading } from '@/components/common/brand-loading';
 
 const SHARED_AUTH_TOKEN_KEY = "appAuthToken";
 const ADMIN_ROLE = "admin";
@@ -29,7 +26,6 @@ export default function AdminLayout({
   const pathname = usePathname();
   const { fetchCompanyProfile } = useInventoryStore();
   const { toast } = useToast();
-  const themeLogo = useThemeLogo();
 
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -131,15 +127,8 @@ export default function AdminLayout({
   }, [hasMounted, checkAuthAndSubscription]);
 
   const loadingScreen = (message: string) => (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4">
-      <Image
-        src={themeLogo}
-        alt={`${APP_NAME} Logo`}
-        width={80}
-        height={80}
-        className="mb-8 animate-pulse"
-      />
-      <LoadingSpinner text={message} size={60} />
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+      <BrandLoading size={88} text={message} />
     </div>
   );
 

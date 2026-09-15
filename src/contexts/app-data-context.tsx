@@ -1,8 +1,8 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { BrandLoading } from '@/components/common/brand-loading';
 
 export type DataDomain =
   | 'profile'
@@ -404,8 +404,7 @@ export function DataReadyGate({ children, fallback }: { children: React.ReactNod
     if (fallback) return <>{fallback}</>;
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <span className="mt-2 text-sm text-muted-foreground">Loading data…</span>
+        <BrandLoading size={56} text="Loading data…" />
       </div>
     );
   }

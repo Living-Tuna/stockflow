@@ -4,7 +4,8 @@
 import React, { useState, Suspense, useMemo } from 'react';
 import { PageTitle } from '@/components/common/page-title';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BookOpen, CalendarDays, Loader2, FileText, BarChart2, Wallet, Scale, PrinterIcon, Building } from 'lucide-react';
+import { BookOpen, CalendarDays, FileText, BarChart2, Wallet, Scale, PrinterIcon, Building } from 'lucide-react';
+import { LogoSpinner } from '@/components/common/logo-spinner';
 import type { DateRange } from 'react-day-picker';
 import { subDays, startOfMonth, endOfMonth, startOfYear, endOfYear, format, startOfQuarter, endOfQuarter, subQuarters } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -226,7 +227,7 @@ function AccountingPageContent() {
 
 const LoadingFallback = () => (
   <div className="flex-1 flex flex-col items-center justify-center p-6 gap-3">
-    <Loader2 className="h-8 w-8 text-primary animate-spin" />
+    <LogoSpinner size={32} />
     <p className="text-muted-foreground">Loading Accounting Reports...</p>
   </div>
 );
