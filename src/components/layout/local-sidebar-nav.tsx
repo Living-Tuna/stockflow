@@ -250,7 +250,7 @@ function LocalSidebarNavInner() {
         </div>
       </SidebarHeader>
       <SidebarContent className="pt-2">
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1" scrollBarClassName="bg-sidebar-primary/40 hover:bg-sidebar-primary/70">
           <Suspense fallback={null}>
             <LocalSidebarNavMenu />
           </Suspense>
