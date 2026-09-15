@@ -52,7 +52,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
-          gh release upload "$TAG" \
-            dist/ecbills-scanner-bridge-setup.exe \
-            dist/ecbills-scanner-bridge.AppImage \
-            --repo "${{ github.repository }}" --clobber
+          UPLOAD_FILES=()
+          if [ -f dist/ecbills-scanner-bridge-setup.exe ]; then
+            UPLOAD_FILES+=("dist/ecbills-scanner-bridge-setup.exe")
+          fi
+          if [ -f dist/ecbills-scanner-bridge.AppImage ]; then
+            UPLOAD_FILES+=("dist/ecbills-scanner-bridge.AppImage")
+          fi
+          if [ ${#UPLOAD_FILES[@]} -gt 0 ]; then
+            gh release upload "$TAG" "${UPLOAD_FILES[@]}" \
+              --repo "${{ github.repository }}" --clobber
+          fi
