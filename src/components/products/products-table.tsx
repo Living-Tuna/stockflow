@@ -14,7 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { MoreHorizontal, Edit3, Trash2, PlusCircle, ArrowUpDown, PackageSearch, ExternalLink, Archive, ArchiveRestore } from 'lucide-react';
+import { MoreHorizontal, Edit3, Trash2, PlusCircle, ArrowUpDown, PackageSearch, ExternalLink, Archive, ArchiveRestore, Barcode as BarcodeIcon } from 'lucide-react';
+import { printBarcodeLabels } from '@/lib/barcode-labels';
 import type { Product, ProductSKU } from '@/types';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
 import { useAppData } from '@/contexts/app-data-context';
@@ -397,11 +398,24 @@ export function ProductsTable() {
                           </Link>
                         </DropdownMenuItem>
                         {!product.isArchived && (
-                          <DropdownMenuItem asChild className="cursor-pointer">
+                        <>
+<DropdownMenuItem asChild className="cursor-pointer">
                             <Link href={`/admin/billing?action=new&mode=buy&prefillProductId=${product.id}${isVariantProduct ? "&isVariant=true": ""}`} target="_blank">
                                 <PackageSearch className="mr-2 h-4 w-4" /> New Purchase Bill <ExternalLink className="ml-auto h-3 w-3 opacity-70"/>
                             </Link>
                           </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onSelect={async () => {
+                            const result = await printBarcodeLabels([product], { copies: 1 });
+                            if (!result.success) {
+                              toast({ variant: "destructive", title: "No Barcode", description: `Set a SKU for "${product.name}" to print its label.` });
+                            }
+                          }}
+                        >
+                          <BarcodeIcon className="mr-2 h-4 w-4" /> Print Barcode Label
+                        </DropdownMenuItem>
+                        </>
                         )}
                         <DropdownMenuSeparator />
                         {product.isArchived ? (

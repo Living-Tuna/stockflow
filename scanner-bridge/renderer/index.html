@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecbills Scanner Bridge</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">ECB</div>
+      <div>
+        <h1>ecbills Scanner Bridge</h1>
+        <p class="sub">USB barcode/QR capture + quick product portal for the web billing app.</p>
+      </div>
+    </div>
+    <div class="status-pills" id="statusPills"></div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="connect">Connection</button>
+    <button class="tab" data-tab="scanner">Scanner</button>
+    <button class="tab" data-tab="products">Add Product</button>
+    <button class="tab" data-tab="labels">Labels</button>
+  </nav>
+
+  <!-- CONNECTION -->
+  <section class="tabpanel active" id="panel-connect">
+    <div class="card">
+      <h2>Web App Connection</h2>
+      <p class="hint">The portal talks to your ecbills web billing app over this device&rsquo;s loopback interface. Browsers open on the billing page connect to the WebSocket below and auto-add scanned products.</p>
+
+      <label>Web App URL</label>
+      <div class="row">
+        <input id="origin" type="text" placeholder="http://localhost:9002" />
+        <button id="checkOrigin" class="btn secondary">Test</button>
+      </div>
+      <div id="originResult" class="note"></div>
+
+      <label>Company ID</label>
+      <input id="companyId" type="text" placeholder="Paste your company ID from the web app" />
+
+      <label>Bridge Port (loopback only)</label>
+      <input id="port" type="number" min="1024" max="65535" placeholder="9080" />
+
+      <div class="row end">
+        <button id="saveConfig" class="btn primary">Save Settings</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Service Status</h2>
+      <ul class="status-list" id="serviceStatus"></ul>
+    </div>
+  </section>
+
+  <!-- SCANNER -->
+  <section class="tabpanel" id="panel-scanner">
+    <div class="card">
+      <h2>USB Barcode Scanner</h2>
+      <p class="hint">
+        Enable <strong>Scanner Listening</strong>, keep this portal window focused, then scan.
+        Each read (scanners send the code followed by Enter) is pushed over the WebSocket to every
+        open billing page, which auto-adds the product. Scans are also logged below.
+      </p>
+
+      <div class="scanner-toggle">
+        <label class="switch">
+          <input type="checkbox" id="scannerActive" />
+          <span class="slider"></span>
+        </label>
+        <div>
+          <div class="toggle-title" id="scannerStateTitle">Scanner Listening: OFF</div>
+          <div class="note">Focus this window, then scan. When the window loses focus, checks the bridge tray menu.</div>
+        </div>
+      </div>
+
+      <h3>Recent Scans (<span id="scanCount">0</span>)</h3>
+      <ul class="scan-list" id="scanList"></ul>
+    </div>
+  </section>
+
+  <!-- ADD PRODUCT -->
+  <section class="tabpanel" id="panel-products">
+    <div class="card">
+      <h2>Add Product (links to web product form)</h2>
+      <p class="hint">Fills the same fields as the web app&rsquo;s “Add Product” page. The product is created in your company through <code>/api/products</code>.</p>
+
+      <div class="grid">
+        <div class="field">
+          <label>Product Name *</label>
+          <input id="productName" type="text" placeholder="e.g. Adidas Running Shoes" />
+        </div>
+        <div class="field">
+          <label>Category</label>
+          <input id="productCategory" type="text" placeholder="e.g. Footwear" />
+        </div>
+        <div class="field">
+          <label>Unit</label>
+          <select id="productUnit">
+            <option value="nos">Piece (nos)</option>
+            <option value="kg">Kilogram (kg)</option>
+            <option value="g">Gram (g)</option>
+            <option value="l">Litre (l)</option>
+            <option value="ml">Millilitre (ml)</option>
+            <option value="m">Metre (m)</option>
+            <option value="box">Box</option>
+            <option value="pack">Pack</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid three">
+        <div class="field">
+          <label>Cost Price (&#8377;)</label>
+          <input id="productCost" type="number" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="field">
+          <label>Sell Price (&#8377;)</label>
+          <input id="productSell" type="number" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="field">
+          <label>Initial Stock</label>
+          <input id="productStock" type="number" step="any" placeholder="1" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label>Description</label>
+          <input id="productDesc" type="text" placeholder="Optional" />
+        </div>
+        <div class="field">
+          <label>HSN Code</label>
+          <input id="productHsn" type="text" placeholder="Optional (e.g. 6404)" />
+        </div>
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="productTrack" checked />
+        Track inventory quantity
+      </label>
+
+      <div class="row end">
+        <button id="addProduct" class="btn primary">Add Product to Company</button>
+      </div>
+      <div id="addProductResult" class="note"></div>
+    </div>
+
+    <div class="card">
+      <h2>Link a Barcode to a Product</h2>
+      <p class="hint">Select a product, then either scan a barcode (the scanned value becomes the product&rsquo;s SKU) or tap <strong>Generate Barcode</strong> to auto-create and store one.</p>
+      <label>Product</label>
+      <select id="productSelect"><option value="">— product list loads when configured —</option></select>
+      <div class="row">
+        <button id="refreshProducts" class="btn">Refresh List</button>
+        <button id="generateBarcode" class="btn">Generate Barcode</button>
+      </div>
+      <div id="linkResult" class="note"></div>
+
+      <div id="barcodePreview" class="barcode-preview hidden">
+        <img id="barcodeImg" alt="Generated barcode" />
+        <div class="code-text" id="barcodeText"></div>
+        <div class="row end">
+          <button id="printBarcodeLabel" class="btn primary">Print Label</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Saved Products (latest 20)</h3>
+      <ul class="product-list" id="savedProductList"></ul>
+    </div>
+  </section>
+
+  <!-- LABELS -->
+  <section class="tabpanel" id="panel-labels">
+    <div class="card">
+      <h2>Print Barcode Labels</h2>
+      <p class="hint">Generates Code-128 + QR labels for the selected products and sends them to your printer.</p>
+      <label>Products</label>
+      <select id="labelProductSelect" multiple size="8"></select>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="labelQr" checked /> Include QR</label>
+        <label class="check"><input type="checkbox" id="labelPrice" /> Include sell price</label>
+      </div>
+      <label>Copies per product</label>
+      <input id="labelCopies" type="number" min="1" max="50" value="1" />
+      <div class="row end">
+        <button id="printSelectedLabels" class="btn primary">Print Labels</button>
+      </div>
+      <div id="labelsResult" class="note"></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Run <code>npm run start</code> in <code>scanner-bridge</code>. Packaged EXE: <code>npm run dist</code> (Windows) / <code>npm run dist:linux</code>.
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>

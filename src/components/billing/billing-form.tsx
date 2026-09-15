@@ -6,6 +6,8 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { useScannerBridge } from '@/hooks/use-scanner-bridge';
+import { ScannerBridgeStatus } from '@/components/common/ScannerBridgeStatus';
 import { BillingHeader } from './billing-header';
 import { BillingProductSelector } from './billing-product-selector';
 import { BillingItemsTable } from './billing-items-table';
@@ -391,6 +393,76 @@ export function BillingForm({
     setIsNewProductDialogOpen(true);
   };
 
+  // Auto-add a product when the desktop scanner bridge pushes a barcode/QR scan.
+  // Exact SKU match is preferred; otherwise the first search hit is used. If no
+  // product matches, the scanned code is offered as a new product (SKU) instead.
+  const handleBridgeScannedCode = useCallback((code: string) => {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+
+    const lower = trimmed.toLowerCase();
+    const matches = searchProducts(trimmed);
+    const exactMatch = matches.find(p =>
+      (p.sku || '').toLowerCase() === lower ||
+      p.productSKUs.some(s => (s.skuIdentifier || '').toLowerCase() === lower)
+    );
+    const candidate = exactMatch || matches[0];
+
+    if (!candidate) {
+      setNewProductDialogInitialValues({
+        name: trimmed,
+        quantity: quantity ? String(quantity) : undefined,
+        costPrice: costPrice !== '' ? String(costPrice) : undefined,
+        sellPrice: sellPrice !== '' ? String(sellPrice) : undefined,
+      });
+      setProductNotFoundHint(trimmed);
+      setIsNewProductDialogOpen(true);
+      setProductNameQuery(trimmed);
+      toast({ variant: "destructive", title: "No Product for Barcode", description: `No product found for "${trimmed}". Create it, or generate/link a barcode from the scanner bridge portal.` });
+      return;
+    }
+
+    const sku = findOrCreateProductSKU(candidate.id, {});
+    const skuDetails = getSkuDetails(sku, finalStoreIdForSkuDetails);
+    const sell = skuDetails.currentSellPrice;
+
+    if (mode === 'sell' && candidate.trackQuantity && skuDetails.totalStock !== null && skuDetails.totalStock <= 0) {
+      toast({ variant: "destructive", title: "Out of Stock", description: `${candidate.name} has no stock available.` });
+      return;
+    }
+
+    const newItem: BillItem = {
+      id: uuidv4(),
+      productId: candidate.id,
+      productName: sku?.skuIdentifier || candidate.name,
+      quantity: 1,
+      costPrice: skuDetails.averageCostPrice ?? 0,
+      sellPrice: sell ?? 0,
+      selectedVariantOptions: {},
+      isAdditionalCharge: false,
+    };
+
+    setCurrentProductForSelection(candidate);
+    setProductNameQuery(sku?.skuIdentifier || candidate.name);
+    setSelectedVariantOptions({});
+    setCurrentSkuSellPrice(sell);
+    setCurrentSkuStock(candidate.trackQuantity ? skuDetails.totalStock : null);
+    if (sell !== null) setSellPrice(String(sell));
+
+    setCurrentBillItems(prev => [...prev, recalculateItemTaxes(newItem)]);
+
+    setProductNameQuery('');
+    setQuantity(1);
+    setCostPrice('');
+    setSellPrice('');
+    setCurrentProductForSelection(null);
+    setSelectedVariantOptions({});
+    productNameInputRef.current?.focus();
+    toast({ title: "Barcode Added", description: `${candidate.name} added to bill (Qty: 1).` });
+  }, [searchProducts, findOrCreateProductSKU, getSkuDetails, finalStoreIdForSkuDetails, mode, recalculateItemTaxes, quantity, costPrice, sellPrice, toast]);
+
+  useScannerBridge(handleBridgeScannedCode);
+
   const handleQuickProductAdded = (newProduct: Product) => {
     // Track that this product was created during this billing session
     // so addBill won't create duplicate stock layers
@@ -467,6 +539,11 @@ export function BillingForm({
         onProductAdded={handleQuickProductAdded}
         editingProduct={editingProduct}
       />
+
+      {/* Scanner bridge status */}
+      <div className="flex justify-end">
+        <ScannerBridgeStatus />
+      </div>
 
       {/* Main UI */}
       <BillingHeader
