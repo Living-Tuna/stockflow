@@ -4,14 +4,22 @@
   <circle cx="627" cy="627" r="560" fill="#005B32"/>
 
   <!-- LEFT E / WHITE FORM -->
-  <!-- Vertical spine -->
-  <rect x="160" y="142" width="367" height="970" fill="#FFFFFF" rx="0"/>
-  <!-- Top bar -->
-  <rect x="160" y="142" width="527" height="61" fill="#FFFFFF"/>
-  <!-- Middle bar (single full-width rectangle) -->
-  <rect x="160" y="590" width="527" height="74" fill="#FFFFFF"/>
-  <!-- Bottom bar -->
-  <rect x="160" y="664" width="527" height="61" fill="#FFFFFF"/>
+  <path
+    fill="#FFFFFF"
+    d="
+      M608 142
+      A452 452 0 0 0 160 529
+      H527
+      V590
+      H160
+      V664
+      H527
+      V725
+      H160
+      A452 452 0 0 0 608 1112
+      Z
+    "
+  />
 
   <!-- RIGHT PERFECT SEMICIRCULAR RING -->
   <path
