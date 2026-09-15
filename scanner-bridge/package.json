@@ -34,12 +34,14 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.png",
+      "artifactName": "ecbills-scanner-bridge-setup.${ext}"
     },
     "linux": {
       "target": ["AppImage"],
       "icon": "assets/icon.png",
-      "category": "Utility"
+      "category": "Utility",
+      "artifactName": "ecbills-scanner-bridge.${ext}"
     },
     "nsis": {
       "oneClick": false,

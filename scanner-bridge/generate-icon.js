@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-const SIZE = 64;
+const SIZE = 512;
 
 function crc32(buf) {
   let table = crc32.table;

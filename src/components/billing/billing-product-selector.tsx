@@ -7,11 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { CornerDownLeft, Barcode as BarcodeIconLucide, Info, Loader2, Edit3 } from 'lucide-react';
+import { CornerDownLeft, Barcode as BarcodeIconLucide, Info, Loader2, Edit3, Download, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 import { ProductSearchInput, type ProductSearchSuggestion } from './product-search-input';
 import { Product, ProductSKU, BillMode } from '@/types';
 import { cn } from '@/lib/utils';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useScannerBridge } from '@/hooks/use-scanner-bridge';
+import { SCANNER_BRIDGE_DOWNLOAD_PAGE } from '@/lib/scanner-bridge-downloads';
 
 interface BillingProductSelectorProps {
     mode: BillMode;
@@ -66,6 +69,7 @@ export const BillingProductSelector: React.FC<BillingProductSelectorProps> = ({
     productNameInputRef
 }) => {
     const { getSkuDetails } = useInventoryStore();
+    const { connected: scannerBridgeConnected } = useScannerBridge();
     const quantityInputRef = useRef<HTMLInputElement>(null);
     const costPriceInputRef = useRef<HTMLInputElement>(null);
     const sellPriceBatchInputRef = useRef<HTMLInputElement>(null);
@@ -120,14 +124,34 @@ export const BillingProductSelector: React.FC<BillingProductSelectorProps> = ({
                             currentMode={mode}
                         />
                         <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon" onClick={onScannerClick} className="shrink-0">
-                                        <BarcodeIconLucide className="h-5 w-5 text-primary" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Scan Barcode/QR</p></TooltipContent>
-                            </Tooltip>
+                            {scannerBridgeConnected ? (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="outline" size="icon" onClick={onScannerClick} className="shrink-0">
+                                            <BarcodeIconLucide className="h-5 w-5 text-primary" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Scan Barcode/QR</p></TooltipContent>
+                                </Tooltip>
+                            ) : (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Link
+                                            href={SCANNER_BRIDGE_DOWNLOAD_PAGE}
+                                            title="Scanner Bridge not installed — click to download"
+                                            className={cn(
+                                                'inline-flex items-center justify-center shrink-0 h-9 w-9 rounded-md border border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400 transition-colors hover:bg-amber-500/20'
+                                            )}
+                                        >
+                                            <Download className="h-5 w-5" />
+                                            <AlertCircle className="absolute ml-6 mt-6 h-3 w-3 text-amber-600" />
+                                        </Link>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Desktop scanner not set up. Click to download the Windows or Linux bridge — it pairs with this page over localhost for automatic barcode billing.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
                         </TooltipProvider>
 
                         {currentProductForSelection && (
