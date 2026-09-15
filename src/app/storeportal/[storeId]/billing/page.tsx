@@ -1,9 +1,9 @@
-
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams as useNextSearchParams } from 'next/navigation';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { AppDataProvider, useAppData } from '@/contexts/app-data-context';
 import { BillingForm } from '@/components/billing/billing-form';
 import type { Store, BillMode } from '@/types';
 import { PageTitle } from '@/components/common/page-title';
@@ -26,153 +26,47 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 
-
-export default function StoreBillingPage() {
-  const router = useRouter();
-  const params = useParams();
-  const storeId = params.storeId as string;
-  const nextSearchParams = useNextSearchParams();
-  const { toast } = useToast();
-
-  const {
-    getStoreById,
-    clearChatForStore,
-    fetchMessagesForStore,
-    messagesByStore,
-    fetchProducts,
-    fetchCompanyProfile,
-  } = useInventoryStore((state) => ({
-    getStoreById: state.getStoreById,
-    clearChatForStore: state.clearChatForStore,
-    fetchMessagesForStore: state.fetchMessagesForStore,
-    messagesByStore: state.messagesByStore,
-    fetchProducts: state.fetchProducts,
-    fetchCompanyProfile: state.fetchCompanyProfile,
-  }));
-
-  const [isStoreAuthenticated, setIsStoreAuthenticated] = useState(false);
-  const [currentStore, setCurrentStore] = useState<Store | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasMounted, setHasMounted] = useState(false);
-  const [isChatDialogOpen, setIsChatDialogOpen] = useState(false);
-  const [companyIdForSession, setCompanyIdForSession] = useState<string | null>(null);
-
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hasMounted || !storeId) {
-      setIsLoading(true);
-      return;
-    }
-
-    setIsLoading(true);
-    const authenticatedStoreSession = sessionStorage.getItem(`authenticatedStore_${storeId}`) === 'true';
-    const storedCompanyId = sessionStorage.getItem(`store_${storeId}_companyId`);
-
-    if (!authenticatedStoreSession || !storedCompanyId) {
-      setIsStoreAuthenticated(false);
-      router.replace(`/storeportal/${storeId}/login`);
-      setIsLoading(false);
-      return;
-    }
-
-    setCompanyIdForSession(storedCompanyId);
-    setIsStoreAuthenticated(true);
-
-    const store = getStoreById(storeId);
-    if (store) {
-      setCurrentStore(store);
-      Promise.all([
-        fetchMessagesForStore(storeId, storedCompanyId),
-        fetchProducts(storedCompanyId),
-        fetchCompanyProfile(storedCompanyId)
-      ]).finally(() => setIsLoading(false));
-    } else {
-      console.warn(`Store ${storeId} not found in client store after authentication.`);
-      toast({ variant: "destructive", title: "Store Data Error", description: "Could not load store details. Please try logging out and in." });
-      router.replace(`/storeportal/${storeId}/login`);
-      setIsLoading(false);
-    }
-  }, [storeId, router, getStoreById, hasMounted, fetchMessagesForStore, fetchProducts, fetchCompanyProfile, toast]);
-
-
-  useEffect(() => {
-    if (!hasMounted || isLoading || !isStoreAuthenticated || !currentStore || !storeId) {
-      return;
-    }
-
-    const currentMode = nextSearchParams.get('mode') as BillMode | null;
-    const allowedOps = currentStore.allowedOperations || [];
-
-    if (allowedOps.length === 0) {
-      if (!currentMode) {
-        router.replace(`/storeportal/${storeId}/billing?mode=sell`);
-      }
-      return;
-    }
-
-    if (!currentMode) {
-      router.replace(`/storeportal/${storeId}/billing?mode=${allowedOps[0]}`);
-    } else if (!allowedOps.includes(currentMode)) {
-      toast({ variant: "destructive", title: "Operation Not Allowed", description: `This terminal is not permitted to perform '${currentMode}' operations. Switching to default.` });
-      router.replace(`/storeportal/${storeId}/billing?mode=${allowedOps[0]}`);
-    }
-  }, [storeId, isStoreAuthenticated, currentStore, nextSearchParams, router, hasMounted, isLoading, toast]);
-
-  const handleStoreLogout = () => {
-    if (hasMounted && storeId) {
-      sessionStorage.removeItem(`authenticatedStore_${storeId}`);
-      sessionStorage.removeItem('lastAuthenticatedStoreId');
-      sessionStorage.removeItem(`store_${storeId}_companyId`);
-    }
-    setIsStoreAuthenticated(false);
-    setCurrentStore(null);
-    if (storeId) router.push(`/storeportal/${storeId}/login`);
-    else router.push('/storeportal');
-  };
-
-  const handleClearChat = async () => {
-    if (storeId && currentStore && companyIdForSession) {
-      const success = await clearChatForStore(storeId, companyIdForSession);
-      if (success) {
-        toast({
-          title: "Chat Cleared",
-          description: `All messages for ${currentStore.name} have been deleted.`,
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Clear Chat Failed",
-          description: `Could not clear chat messages for ${currentStore.name}.`,
-        });
-      }
-      setIsChatDialogOpen(false);
-    }
-  };
-
-  const loadingScreen = (message: string) => (
+function loadingScreen(message: string) {
+  return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-muted/40">
       <Image src="https://placehold.co/64x64.png" alt={`${APP_NAME} Logo`} width={48} height={48} className="mb-2 rounded-lg animate-pulse" data-ai-hint="logo company" />
       <p className="text-lg text-muted-foreground">{message}</p>
     </div>
   );
+}
 
-  if (!hasMounted) return loadingScreen("Initializing Store Portal...");
-  if (isLoading) return loadingScreen(`Loading ${currentStore ? currentStore.name : 'Store'} Terminal...`);
+interface StoreBillingInnerProps {
+  storeId: string;
+  currentStore: Store;
+  companyIdForSession: string;
+  isChatDialogOpen: boolean;
+  setIsChatDialogOpen: (open: boolean) => void;
+  handleClearChat: () => void;
+  handleStoreLogout: () => void;
+  modeFromUrl: BillMode | null;
+}
 
-  if (!currentStore && !isLoading) {
-    return loadingScreen("Store not found or error loading. Redirecting...");
-  }
-  if (currentStore && !isStoreAuthenticated && !isLoading) {
-    return loadingScreen(`Redirecting to login for ${currentStore.name}...`);
-  }
+function StoreBillingInner({
+  storeId,
+  currentStore,
+  companyIdForSession,
+  isChatDialogOpen,
+  setIsChatDialogOpen,
+  handleClearChat,
+  handleStoreLogout,
+  modeFromUrl,
+}: StoreBillingInnerProps) {
+  const { ensureLoaded, ensureStoreChatLoaded, isReady } = useAppData();
 
-  const modeFromUrl = nextSearchParams.get('mode') as BillMode | null;
+  useEffect(() => {
+    if (storeId && companyIdForSession) {
+      ensureLoaded(['products', 'profile']);
+      ensureStoreChatLoaded(storeId, companyIdForSession);
+    }
+  }, [storeId, companyIdForSession, ensureLoaded, ensureStoreChatLoaded]);
 
-  if (!currentStore || !isStoreAuthenticated || !companyIdForSession) {
-    return loadingScreen("Preparing Store Terminal...");
+  if (!isReady) {
+    return loadingScreen("Loading Store Data...");
   }
 
   return (
@@ -241,5 +135,149 @@ export default function StoreBillingPage() {
         />
       </Suspense>
     </div>
+  );
+}
+
+export default function StoreBillingPage() {
+  const router = useRouter();
+  const params = useParams();
+  const storeId = params.storeId as string;
+  const nextSearchParams = useNextSearchParams();
+  const { toast } = useToast();
+
+  const {
+    getStoreById,
+    clearChatForStore,
+  } = useInventoryStore((state) => ({
+    getStoreById: state.getStoreById,
+    clearChatForStore: state.clearChatForStore,
+  }));
+
+  const [isStoreAuthenticated, setIsStoreAuthenticated] = useState(false);
+  const [currentStore, setCurrentStore] = useState<Store | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasMounted, setHasMounted] = useState(false);
+  const [isChatDialogOpen, setIsChatDialogOpen] = useState(false);
+  const [companyIdForSession, setCompanyIdForSession] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasMounted || !storeId) {
+      setIsLoading(true);
+      return;
+    }
+
+    setIsLoading(true);
+    const authenticatedStoreSession = sessionStorage.getItem(`authenticatedStore_${storeId}`) === 'true';
+    const storedCompanyId = sessionStorage.getItem(`store_${storeId}_companyId`);
+
+    if (!authenticatedStoreSession || !storedCompanyId) {
+      setIsStoreAuthenticated(false);
+      router.replace(`/storeportal/${storeId}/login`);
+      setIsLoading(false);
+      return;
+    }
+
+    setCompanyIdForSession(storedCompanyId);
+    setIsStoreAuthenticated(true);
+
+    const store = getStoreById(storeId);
+    if (store) {
+      setCurrentStore(store);
+      setIsLoading(false);
+    } else {
+      console.warn(`Store ${storeId} not found in client store after authentication.`);
+      toast({ variant: "destructive", title: "Store Data Error", description: "Could not load store details. Please try logging out and in." });
+      router.replace(`/storeportal/${storeId}/login`);
+      setIsLoading(false);
+    }
+  }, [storeId, router, getStoreById, hasMounted, toast]);
+
+  useEffect(() => {
+    if (!hasMounted || isLoading || !isStoreAuthenticated || !currentStore || !storeId) {
+      return;
+    }
+
+    const currentMode = nextSearchParams.get('mode') as BillMode | null;
+    const allowedOps = currentStore.allowedOperations || [];
+
+    if (allowedOps.length === 0) {
+      if (!currentMode) {
+        router.replace(`/storeportal/${storeId}/billing?mode=sell`);
+      }
+      return;
+    }
+
+    if (!currentMode) {
+      router.replace(`/storeportal/${storeId}/billing?mode=${allowedOps[0]}`);
+    } else if (!allowedOps.includes(currentMode)) {
+      toast({ variant: "destructive", title: "Operation Not Allowed", description: `This terminal is not permitted to perform '${currentMode}' operations. Switching to default.` });
+      router.replace(`/storeportal/${storeId}/billing?mode=${allowedOps[0]}`);
+    }
+  }, [storeId, isStoreAuthenticated, currentStore, nextSearchParams, router, hasMounted, isLoading, toast]);
+
+  const handleStoreLogout = () => {
+    if (hasMounted && storeId) {
+      sessionStorage.removeItem(`authenticatedStore_${storeId}`);
+      sessionStorage.removeItem('lastAuthenticatedStoreId');
+      sessionStorage.removeItem(`store_${storeId}_companyId`);
+    }
+    setIsStoreAuthenticated(false);
+    setCurrentStore(null);
+    if (storeId) router.push(`/storeportal/${storeId}/login`);
+    else router.push('/storeportal');
+  };
+
+  const handleClearChat = async () => {
+    if (storeId && currentStore && companyIdForSession) {
+      const success = await clearChatForStore(storeId, companyIdForSession);
+      if (success) {
+        toast({
+          title: "Chat Cleared",
+          description: `All messages for ${currentStore.name} have been deleted.`,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Clear Chat Failed",
+          description: `Could not clear chat messages for ${currentStore.name}.`,
+        });
+      }
+      setIsChatDialogOpen(false);
+    }
+  };
+
+  if (!hasMounted) return loadingScreen("Initializing Store Portal...");
+  if (isLoading) return loadingScreen(`Loading ${currentStore ? currentStore.name : 'Store'} Terminal...`);
+
+  if (!currentStore && !isLoading) {
+    return loadingScreen("Store not found or error loading. Redirecting...");
+  }
+  if (currentStore && !isStoreAuthenticated && !isLoading) {
+    return loadingScreen(`Redirecting to login for ${currentStore.name}...`);
+  }
+
+  const modeFromUrl = nextSearchParams.get('mode') as BillMode | null;
+
+  if (!currentStore || !isStoreAuthenticated || !companyIdForSession) {
+    return loadingScreen("Preparing Store Terminal...");
+  }
+
+  return (
+    <AppDataProvider companyId={companyIdForSession} mode="cloud" domains={['products', 'profile']}>
+      <StoreBillingInner
+        storeId={storeId}
+        currentStore={currentStore}
+        companyIdForSession={companyIdForSession}
+        isChatDialogOpen={isChatDialogOpen}
+        setIsChatDialogOpen={setIsChatDialogOpen}
+        handleClearChat={handleClearChat}
+        handleStoreLogout={handleStoreLogout}
+        modeFromUrl={modeFromUrl}
+      />
+    </AppDataProvider>
   );
 }

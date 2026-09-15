@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile, Company, CurrencyOption } from '@/types';
 import { Settings as SettingsIcon, Save, StickyNote, CreditCard, Palette, Info, Globe, Languages, Check } from 'lucide-react';
@@ -88,7 +89,6 @@ export default function SettingsPage() {
   const { 
     userProfile, 
     updateUserProfileFields, 
-    fetchCompanyProfile 
   } = useInventoryStore();
   const { toast } = useToast();
   const { theme } = useTheme();
@@ -101,6 +101,7 @@ export default function SettingsPage() {
   const [hasMounted, setHasMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentCompanyId, setCurrentCompanyId] = useState<string | null>(null);
+  const { ensureLoaded } = useAppData();
 
   useEffect(() => {
     setHasMounted(true);
@@ -108,7 +109,7 @@ export default function SettingsPage() {
     if (companyIdFromStorage) {
       setCurrentCompanyId(companyIdFromStorage);
       setIsLoading(true);
-      fetchCompanyProfile(companyIdFromStorage) 
+      ensureLoaded(['profile'])
         .then(() => setIsLoading(false))
         .catch(() => {
           toast({ variant: "destructive", title: "Error", description: "Could not load company settings." });
@@ -118,7 +119,7 @@ export default function SettingsPage() {
       toast({ variant: "destructive", title: "Error", description: "Company context not found."});
       setIsLoading(false);
     }
-  }, [fetchCompanyProfile, toast]);
+  }, [ensureLoaded, toast]);
 
   useEffect(() => {
     if (hasMounted && !isLoading && userProfile) {

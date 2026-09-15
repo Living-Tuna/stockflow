@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import { useToast } from '@/hooks/use-toast';
 import type { Product, ProductVariant as ProductVariantType, ProductOption as ProductOptionType, AdditionalChargeDefinition } from '@/types';
 import { CategorySearchInput } from './category-search-input';
@@ -417,8 +418,9 @@ export function NewProductDialog({
   initialValues,
   editingProduct,
 }: NewProductDialogProps) {
-  const { addProduct, updateProduct, categories, addCategory: addCategoryToStore, fetchCategories } = useInventoryStore();
+  const { addProduct, updateProduct, categories, addCategory: addCategoryToStore } = useInventoryStore();
   const { toast } = useToast();
+  const { ensureLoaded } = useAppData();
   const [currentCompanyId, setCurrentCompanyId] = useState<string | null>(null);
 
   const form = useForm<NewProductDialogFormData>({
@@ -458,10 +460,10 @@ export function NewProductDialog({
     if (companyIdFromStorage) {
       setCurrentCompanyId(companyIdFromStorage);
       if (isOpen) {
-        fetchCategories(companyIdFromStorage);
+        ensureLoaded(['categories']);
       }
     }
-  }, [isOpen, fetchCategories]);
+  }, [isOpen, ensureLoaded]);
 
 
   useEffect(() => {

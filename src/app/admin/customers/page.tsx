@@ -5,16 +5,16 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { PageTitle } from '@/components/common/page-title';
 import { CustomersTable } from '@/components/customers/customers-table';
 import { Contact, Loader2, PlusCircle } from 'lucide-react';
-import { useInventoryStore } from '@/hooks/use-inventory-store';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useAppData } from '@/contexts/app-data-context';
 
 function CustomersContent() {
-  const fetchCustomers = useInventoryStore((state) => state.fetchCustomers);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { ensureLoaded } = useAppData();
 
   useEffect(() => {
     const storedCompanyId = localStorage.getItem('companyId');
@@ -30,9 +30,9 @@ function CustomersContent() {
   useEffect(() => {
     if (companyId) {
       setIsLoading(true);
-      fetchCustomers(companyId).finally(() => setIsLoading(false));
+      ensureLoaded(['customers']).finally(() => setIsLoading(false));
     }
-  }, [companyId, fetchCustomers]);
+  }, [companyId, ensureLoaded]);
 
   // Placeholder for Add Customer button action
   const handleAddCustomer = () => {

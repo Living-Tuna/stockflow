@@ -20,6 +20,7 @@ import { MoreHorizontal, Eye, Printer, ArrowUpDown, ShoppingBag, Send, RotateCcw
 import { format, isToday, isThisWeek, isThisMonth, isThisYear, startOfDay, endOfDay, isValid, parseISO, isWithinInterval, subMonths, subYears, startOfWeek, endOfWeek, getDate, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import type { Bill, ProductSKU, BillMode, BillItem, StockLayer, Product } from '@/types';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDesc, AlertDialogFooter as AlertDialogFoot, AlertDialogHeader as AlertDialogHead, AlertDialogTitle as AlertDialogTit, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -81,7 +82,6 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
     getSkuDetails,
     updateBillNonCriticalDetails: updateBillDetailsInStore,
     products: allProductsStore,
-    fetchBills,
     companyId: currentCompanyId,
   } = useInventoryStore(
     (state) => ({
@@ -92,11 +92,11 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
       getSkuDetails: state.getSkuDetails,
       updateBillNonCriticalDetails: state.updateBillNonCriticalDetails,
       products: state.products,
-      fetchBills: state.fetchBills,
       companyId: typeof window !== 'undefined' ? localStorage.getItem('companyId') : null,
     })
   );
   const { toast } = useToast();
+  const { ensureLoaded } = useAppData();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
@@ -112,11 +112,11 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
   useEffect(() => {
     if (currentCompanyId) {
       setIsLoading(true);
-      fetchBills(currentCompanyId).finally(() => setIsLoading(false));
+      ensureLoaded(['bills']).finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
-  }, [currentCompanyId, fetchBills]);
+  }, [currentCompanyId, ensureLoaded]);
 
 
   const findProductSKUfromStore = useCallback((productId: string, selectedOptions?: Record<string, string>): ProductSKU | undefined => {

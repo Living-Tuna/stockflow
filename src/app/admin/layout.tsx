@@ -1,6 +1,7 @@
 "use client";
 
 import { AppShell } from '@/components/layout/app-shell';
+import { AppDataProvider, DataReadyGate } from '@/contexts/app-data-context';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -162,5 +163,11 @@ export default function AdminLayout({
     return null;
   }
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <AppDataProvider>
+      <DataReadyGate fallback={loadingScreen("Loading your data...")}>
+        <AppShell>{children}</AppShell>
+      </DataReadyGate>
+    </AppDataProvider>
+  );
 }

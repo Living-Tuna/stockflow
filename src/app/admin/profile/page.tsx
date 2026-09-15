@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { SUBSCRIPTION_PLANS, SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
 import type { SubscriptionPlan, UserProfile, Company } from '@/types';
@@ -111,9 +112,9 @@ export default function ProfilePage() {
   const { 
     userProfile,
     updateUserProfileFields,
-    fetchCompanyProfile, 
   } = useInventoryStore();
   const { toast } = useToast();
+  const { ensureLoaded } = useAppData();
 
   const [activePlanDetails, setActivePlanDetails] = useState<SubscriptionPlan | undefined>(undefined);
   const [loggedInUserName, setLoggedInUserName] = useState<string | null>(null);
@@ -133,17 +134,12 @@ export default function ProfilePage() {
       setCurrentCompanyId(companyIdFromStorage);
       setLoggedInUserName(userNameFromStorage);
       setIsLoadingProfile(true);
-      // Fetch company profile if userProfile dataMode is 'local' or not set (initial load)
-      if (!userProfile.dataMode || userProfile.dataMode === 'local') {
-        fetchCompanyProfile(companyIdFromStorage).finally(() => setIsLoadingProfile(false));
-      } else {
-        setIsLoadingProfile(false); // Already have global data
-      }
+      ensureLoaded(['profile']).finally(() => setIsLoadingProfile(false));
     } else {
       toast({ variant: "destructive", title: "Error", description: "Company context not found."});
       setIsLoadingProfile(false);
     }
-  }, [fetchCompanyProfile, toast, userProfile.dataMode]);
+  }, [ensureLoaded, toast, userProfile.dataMode]);
 
   useEffect(() => {
     if (hasMounted && userProfile) {
@@ -193,7 +189,7 @@ export default function ProfilePage() {
         console.error("Error updating subscription:", error);
         toast({ variant: 'destructive', title: 'Update Failed', description: 'Could not update subscription plan. Previous plan restored.' });
         // Optionally, re-fetch profile to ensure consistency if server update partially failed
-        fetchCompanyProfile(currentCompanyId);
+        ensureLoaded(['profile']);
     } finally {
         setIsUpdatingSubscription(false);
     }

@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PlusCircle, History as HistoryIcon, ShoppingBag, Send, RotateCcw, Building, ListChecks, BarChart2, CalendarDays, Loader2 } from 'lucide-react';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -79,21 +80,17 @@ function BillingContent() {
 
   const { 
     getActiveSubscriptionPlan, 
-    fetchBills, 
-    fetchStores, 
-    fetchStaff,
     stores: storesFromZustand, 
     staffs: staffsFromZustand,
     companyId: currentCompanyIdFromStore, 
   } = useInventoryStore(state => ({
     getActiveSubscriptionPlan: state.getActiveSubscriptionPlan,
-    fetchBills: state.fetchBills,
-    fetchStores: state.fetchStores, 
-    fetchStaff: state.fetchStaff,
     stores: state.stores, 
     staffs: state.staffs,
     companyId: localStorage.getItem('companyId') 
   }));
+
+  const { ensureLoaded, refresh } = useAppData();
 
   const [allStoresState, setAllStoresState] = useState<Store[]>([]);
   const [activePlan, setActivePlan] = useState<ReturnType<typeof getActiveSubscriptionPlan>>(undefined);
@@ -115,11 +112,9 @@ function BillingContent() {
   useEffect(() => {
     setHasMounted(true);
     if (currentCompanyIdFromStore) {
-      fetchBills(currentCompanyIdFromStore);
-      fetchStores(currentCompanyIdFromStore); 
-      fetchStaff(currentCompanyIdFromStore);
+      ensureLoaded(['bills', 'stores', 'staff']);
     }
-  }, [currentCompanyIdFromStore, fetchBills, fetchStores, fetchStaff]); 
+  }, [currentCompanyIdFromStore, ensureLoaded]); 
 
   useEffect(() => {
     if (hasMounted) {
@@ -215,7 +210,7 @@ function BillingContent() {
           <StoreFormDialog 
             isOpen={showStoreFormDialog} 
             onOpenChange={setShowStoreFormDialog} 
-            onFormSubmit={() => { if (currentCompanyIdFromStore) fetchStores(currentCompanyIdFromStore); }} 
+            onFormSubmit={() => { refresh(["stores"]); }} 
             allStaff={staffsFromZustand} 
           />
         </>
@@ -355,7 +350,7 @@ function BillingContent() {
         <StoreFormDialog 
           isOpen={showStoreFormDialog} 
           onOpenChange={setShowStoreFormDialog} 
-          onFormSubmit={() => { if (currentCompanyIdFromStore) fetchStores(currentCompanyIdFromStore); }} 
+          onFormSubmit={() => { refresh(["stores"]); }} 
           allStaff={staffsFromZustand} 
         />
     </>

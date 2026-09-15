@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import type { ChatMessage } from '@/types';
 import { ChatMessageItem } from './ChatMessageItem';
 import { Send, Loader2 } from 'lucide-react'; // Added Loader2
@@ -21,13 +22,12 @@ export function ChatInterface({ storeId, currentUserId, currentUserName }: ChatI
     messagesByStore, 
     addChatMessage, 
     getMessagesForStore,
-    fetchMessagesForStore
   } = useInventoryStore((state) => ({
     messagesByStore: state.messagesByStore,
     addChatMessage: state.addChatMessage,
     getMessagesForStore: state.getMessagesForStore,
-    fetchMessagesForStore: state.fetchMessagesForStore,
   }));
+  const { ensureStoreChatLoaded } = useAppData();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -50,13 +50,13 @@ export function ChatInterface({ storeId, currentUserId, currentUserName }: ChatI
   useEffect(() => {
     if (storeId && currentCompanyId) {
       setIsLoadingMessages(true);
-      fetchMessagesForStore(storeId, currentCompanyId).finally(() => {
+      ensureStoreChatLoaded(storeId, currentCompanyId).finally(() => {
         setIsLoadingMessages(false);
       });
     } else if (!currentCompanyId) {
         setIsLoadingMessages(false); // No companyId, can't fetch
     }
-  }, [storeId, currentCompanyId, fetchMessagesForStore]);
+  }, [storeId, currentCompanyId, ensureStoreChatLoaded]);
   
   useEffect(() => {
     setMessages(getMessagesForStore(storeId));

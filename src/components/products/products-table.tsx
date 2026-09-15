@@ -17,6 +17,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { MoreHorizontal, Edit3, Trash2, PlusCircle, ArrowUpDown, PackageSearch, ExternalLink, Archive, ArchiveRestore } from 'lucide-react';
 import type { Product, ProductSKU } from '@/types';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import { formatQuantity } from '@/lib/units';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -35,7 +36,6 @@ type SortableColumns = 'name' | 'category' | 'stock' | 'costPrice' | 'sellPrice'
 export function ProductsTable() {
   const { 
     products, 
-    fetchProducts, 
     archiveProduct,
     unarchiveProduct, 
     getSkuDetails,
@@ -44,7 +44,6 @@ export function ProductsTable() {
   } = useInventoryStore(
     (state) => ({
       products: state.products,
-      fetchProducts: state.fetchProducts,
       archiveProduct: state.archiveProduct,
       unarchiveProduct: state.unarchiveProduct,
       getSkuDetails: state.getSkuDetails,
@@ -53,6 +52,7 @@ export function ProductsTable() {
     })
   );
   const { toast } = useToast();
+  const { ensureLoaded } = useAppData();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortableColumns; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
@@ -84,9 +84,9 @@ export function ProductsTable() {
   useEffect(() => {
     if (hasMounted && companyId) {
       setIsLoading(true);
-      fetchProducts(companyId).finally(() => setIsLoading(false));
+      ensureLoaded(['products']).finally(() => setIsLoading(false));
     }
-  }, [hasMounted, companyId, fetchProducts]);
+  }, [hasMounted, companyId, ensureLoaded]);
 
 
   const filteredAndSortedProducts = useMemo(() => {

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import { useToast } from '@/hooks/use-toast';
 import type { Product, ProductVariant as ProductVariantType, Bill, StockLayer, ProductSKU, ProductOption as ProductOptionType, AdditionalChargeDefinition } from '@/types';
 import { CategorySearchInput } from '@/components/billing/category-search-input';
@@ -413,11 +414,11 @@ export function ProductForm({ initialData: initialProductProp, searchParams: rou
   const {
     addProduct: addProductToStore,
     updateProduct: updateProductInStore,
-    fetchCategories,
     categories,
     addCategory: addCategoryToStore,
     getBillsForProduct, getSkuDetails,
   } = useInventoryStore();
+  const { ensureLoaded } = useAppData();
 
   const { toast } = useToast();
   const router = useRouter();
@@ -457,12 +458,12 @@ export function ProductForm({ initialData: initialProductProp, searchParams: rou
     const storedCompanyId = localStorage.getItem('companyId');
     if (storedCompanyId) {
       setCurrentCompanyId(storedCompanyId);
-      fetchCategories(storedCompanyId);
+      ensureLoaded(['categories']);
     } else {
       console.error("ProductForm: Company ID not found in localStorage.");
       toast({ variant: "destructive", title: "Error", description: "Company context is missing. Cannot manage products." });
     }
-  }, [toast, fetchCategories]);
+  }, [toast, ensureLoaded]);
 
 
   useEffect(() => {

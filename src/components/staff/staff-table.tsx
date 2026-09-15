@@ -16,6 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { MoreHorizontal, Edit3, Trash2, PlusCircle, ArrowUpDown } from 'lucide-react';
 import type { Staff } from '@/types';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import { StaffFormDialog } from './staff-form-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -25,8 +26,9 @@ import { SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
 type SortableStaffColumns = keyof Pick<Staff, 'name' | 'email' | 'phone'>;
 
 export function StaffTable() {
-  const { staffs, deleteStaff, getAllStores, getActiveSubscriptionPlan, getStaffDetailsByIds, fetchStaff } = useInventoryStore();
+  const { staffs, deleteStaff, getAllStores, getActiveSubscriptionPlan, getStaffDetailsByIds } = useInventoryStore();
   const { toast } = useToast();
+  const { ensureLoaded } = useAppData();
 
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
@@ -78,7 +80,7 @@ export function StaffTable() {
       return;
     }
     setEditingStaff(staff);
-    fetchStaff(localStorage.getItem('companyId') || ''); // Refresh to get latest data including passwords
+    ensureLoaded(['staff']); // Refresh to get latest data including passwords
     setIsFormDialogOpen(true);
   };
 
@@ -141,7 +143,7 @@ export function StaffTable() {
                     return;
                   }
                   setEditingStaff(null);
-                  fetchStaff(localStorage.getItem('companyId') || ''); // Force refresh on add intent
+                  ensureLoaded(['staff']); // Force refresh on add intent
                   setIsFormDialogOpen(true);
                 }}
                 disabled={!userCanAddStaff || isAdminOnlyPlan}

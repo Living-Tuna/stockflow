@@ -3,6 +3,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import type { Customer, Bill } from '@/types';
 import { useEffect, useState, useMemo } from 'react';
 import { PageTitle } from '@/components/common/page-title';
@@ -29,13 +30,12 @@ export default function CustomerDetailsPage() {
   const router = useRouter();
   const customerId = params.customerId as string;
   
-  const { getCustomerById, bills, userProfile, fetchBills, fetchCustomers } = useInventoryStore(state => ({
+  const { getCustomerById, bills, userProfile } = useInventoryStore(state => ({
     getCustomerById: state.getCustomerById,
     bills: state.bills,
     userProfile: state.userProfile,
-    fetchBills: state.fetchBills,
-    fetchCustomers: state.fetchCustomers,
   }));
+  const { ensureLoaded } = useAppData();
 
   const [customer, setCustomer] = useState<Customer | null | undefined>(undefined);
   const [analytics, setAnalytics] = useState<CustomerAnalytics | null>(null);
@@ -48,12 +48,8 @@ export default function CustomerDetailsPage() {
   }, [userProfile.companyCurrency]);
   
   useEffect(() => {
-    const companyId = localStorage.getItem('companyId');
-    if (companyId) {
-        fetchCustomers(companyId);
-        fetchBills(companyId);
-    }
-  }, [fetchCustomers, fetchBills]);
+    ensureLoaded(['customers', 'bills']);
+  }, [ensureLoaded]);
 
   useEffect(() => {
     if (customerId) {

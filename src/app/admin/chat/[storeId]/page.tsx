@@ -6,6 +6,7 @@ import { PageTitle } from '@/components/common/page-title';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { MessageSquare, Trash2, AlertTriangle, ChevronLeft } from 'lucide-react';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import { useEffect, useState } from 'react';
 import type { Store } from '@/types';
 import Link from 'next/link';
@@ -28,18 +29,17 @@ export default function AdminStoreChatPage() {
   const storeId = params.storeId as string;
   const { 
     getStoreById, 
-    fetchMessagesForStore, 
     clearChatForStore, 
     messagesByStore, 
     companyId: currentCompanyIdFromStoreHook // Not used directly for fetch, companyId from localStorage is used
   } = useInventoryStore((state) => ({
     getStoreById: state.getStoreById,
-    fetchMessagesForStore: state.fetchMessagesForStore,
     clearChatForStore: state.clearChatForStore,
     messagesByStore: state.messagesByStore, // To trigger re-renders when messages update
     companyId: state.userProfile.companyName // This is not companyId, placeholder for actual id
   }));
   const { toast } = useToast();
+  const { ensureStoreChatLoaded } = useAppData();
 
   const [store, setStore] = useState<Store | null | undefined>(undefined); // undefined for loading
   const [currentCompanyId, setCurrentCompanyId] = useState<string | null>(null);
@@ -60,14 +60,14 @@ export default function AdminStoreChatPage() {
     if (storeId && currentCompanyId) {
       setIsLoading(true);
       setStore(getStoreById(storeId)); // Get store details from client cache
-      fetchMessagesForStore(storeId, currentCompanyId).finally(() => setIsLoading(false));
+      ensureStoreChatLoaded(storeId, currentCompanyId).finally(() => setIsLoading(false));
     } else if (storeId && !currentCompanyId) {
       // Waiting for companyId
       setIsLoading(true);
     } else {
         setIsLoading(false);
     }
-  }, [storeId, currentCompanyId, getStoreById, fetchMessagesForStore]);
+  }, [storeId, currentCompanyId, getStoreById, ensureStoreChatLoaded]);
 
   const handleClearChat = async () => {
     if (storeId && currentCompanyId && store) {

@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PlusCircle, History as HistoryIcon, ShoppingBag, Send, RotateCcw, ListChecks, BarChart2, CalendarDays, Loader2 } from 'lucide-react';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
+import { useAppData } from '@/contexts/app-data-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -31,16 +32,14 @@ function BillingContent() {
   const currentViewFromUrl = searchParams.get('view') as BillingView | null;
 
   const { 
-    fetchBills, 
-    fetchStores, 
     stores: storesFromZustand, 
     companyId: currentCompanyIdFromStore, 
   } = useInventoryStore(state => ({
-    fetchBills: state.fetchBills,
-    fetchStores: state.fetchStores, 
     stores: state.stores, 
     companyId: localStorage.getItem('companyId') 
   }));
+
+  const { ensureLoaded } = useAppData();
 
   const [allStoresState, setAllStoresState] = useState<Store[]>([]);
   const [activeBillingView, setActiveBillingView] = useState<BillingView>(currentViewFromUrl || 'history');
@@ -55,10 +54,9 @@ function BillingContent() {
   useEffect(() => {
     setHasMounted(true);
     if (currentCompanyIdFromStore) {
-      fetchBills(currentCompanyIdFromStore);
-      fetchStores(currentCompanyIdFromStore); 
+      ensureLoaded(['bills', 'stores']);
     }
-  }, [currentCompanyIdFromStore, fetchBills, fetchStores]); 
+  }, [currentCompanyIdFromStore, ensureLoaded]); 
 
   useEffect(() => {
     if (hasMounted) {
