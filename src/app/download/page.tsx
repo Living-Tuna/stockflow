@@ -130,7 +130,7 @@ export default function BridgeDownloadPage() {
             </div>
             <div className="mt-10 text-center">
               <Button asChild variant="outline" size="lg">
-                <Link href="/storeportal">Continue to Browser Store Portal ({SCANNER_BRIDGE_VERSION && 'web billing pairs via localhost'})</Link>
+                <Link href="/storeportal">Continue to Browser Store Portal</Link>
               </Button>
             </div>
           </div>
