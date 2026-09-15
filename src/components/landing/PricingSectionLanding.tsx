@@ -16,24 +16,23 @@ export function PricingSectionLanding() {
     <section id="pricing" className="section-padding bg-tertiary dark:bg-background">
       <div className="section-container">
         <div className="text-center mb-16 md:mb-20">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground animate-fadeInDown">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground">
             Flexible <span className="text-gradient-primary">Pricing Plans</span>
           </h2>
-          <p className="mt-6 max-w-xl mx-auto text-lg text-muted-foreground animate-fadeInDown delay-200">
+          <p className="mt-6 max-w-xl mx-auto text-lg text-muted-foreground">
             Choose the plan that best fits your business needs. No hidden fees, transparent value.
           </p>
         </div>
         <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-3 items-stretch max-w-6xl mx-auto">
-          {plansToShow.map((plan, index) => (
+          {plansToShow.map((plan) => (
             <Card 
               key={plan.id} 
               className={cn(
-                "flex flex-col transition-all duration-300 hover:shadow-2xl dark:hover:shadow-primary/20 shadow-xl rounded-2xl border border-border/70 animate-fadeInUp",
+                "flex flex-col transition-all duration-300 hover:shadow-2xl dark:hover:shadow-primary/20 shadow-xl rounded-2xl border border-border/70",
                 plan.id === popularPlanId ? 'border-2 border-primary ring-4 ring-primary/20 relative transform scale-100 lg:scale-105' : 'hover:border-primary/50',
                 plan.id !== popularPlanId ? 'bg-card' : 'bg-card', 
                 "group" 
               )}
-              style={{ animationDelay: `${index * 150 + 300}ms` }}
             >
               {plan.id === popularPlanId && (
                 <div className="absolute -top-4 -right-4 bg-primary text-primary-foreground p-2.5 rounded-full shadow-lg z-10 animate-pulse-badge">
@@ -85,7 +84,7 @@ export function PricingSectionLanding() {
             </Card>
           ))}
         </div>
-        <div className="mt-20 text-center animate-fadeInUp delay-500">
+        <div className="mt-20 text-center">
           <p className="text-muted-foreground text-lg">
             Need more? We offer an <Link href="#contact" className="text-primary hover:underline font-semibold transition-colors">Enterprise plan</Link> with custom solutions.
           </p>

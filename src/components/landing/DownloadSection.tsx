@@ -85,27 +85,26 @@ export function DownloadSection() {
 
             <div className="section-container relative z-10">
                 <div className="text-center mb-16 md:mb-20">
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 mb-6 animate-fadeInDown shadow-sm">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 mb-6 shadow-sm">
                         <Download size={14} className="animate-bounce" />
                         <span className="text-xs font-bold uppercase tracking-wider">Multi-Platform</span>
                     </div>
-                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-foreground animate-fadeInDown delay-100">
+                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-foreground">
                         Install <span className="text-gradient-primary">ecbills.in</span> Locally
                     </h2>
-                    <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground animate-fadeInDown delay-200 leading-relaxed">
+                    <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground leading-relaxed">
                         Experience superior performance, offline access, and native OS integration by downloading the official app for your device.
                     </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 px-2 md:px-0">
-                    {platforms.map((platform, index) => (
+                    {platforms.map((platform) => (
                         <div
                             key={platform.name}
                             className={cn(
-                                "bg-card/50 backdrop-blur-sm border border-border/60 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group flex flex-col items-center text-center animate-fadeInUp",
+                                "bg-card/50 backdrop-blur-sm border border-border/60 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group flex flex-col items-center text-center",
                                 platform.hoverBorder
                             )}
-                            style={{ animationDelay: `${index * 100 + 300}ms` }}
                         >
                             <div className={cn("p-5 rounded-2xl mb-5 transition-transform duration-300 group-hover:scale-110 shadow-inner", platform.bgColor)}>
                                 <platform.icon className={cn("w-10 h-10", platform.color)} />
@@ -123,7 +122,7 @@ export function DownloadSection() {
                     ))}
                 </div>
 
-                <div className="mt-16 text-center animate-fadeInUp delay-700">
+                <div className="mt-16 text-center">
                     <p className="text-sm text-muted-foreground">
                         Looking for the web version? <a href="/storeportal" className="text-primary hover:underline font-medium cursor-pointer">Continue to Browser Store Portal</a>
                     </p>

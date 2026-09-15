@@ -55,15 +55,15 @@ export function OtherSection() {
     <section id="other" className="section-padding bg-background dark:bg-secondary/10">
       <div className="section-container">
         <div className="text-center mb-16 md:mb-20">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground animate-fadeInDown">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground">
             More Than Just <span className="text-gradient-primary">Inventory</span>
           </h2>
-          <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground animate-fadeInDown delay-200">
+          <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
             Our platform is engineered to adapt and grow with your business, offering unique advantages and robust solutions.
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
-          {otherFeatures.map((feature, index) => (
+          {otherFeatures.map((feature) => (
             <InfoCard
               key={feature.title}
               icon={feature.icon}
@@ -71,7 +71,6 @@ export function OtherSection() {
               description={feature.description}
               color={feature.color}
               bgColor={feature.bgColor}
-              index={index}
             />
           ))}
         </div>
@@ -86,14 +85,12 @@ interface InfoCardProps {
   description: string;
   color: string;
   bgColor: string;
-  index: number;
 }
 
-const InfoCard: React.FC<InfoCardProps> = ({ icon: Icon, title, description, color, bgColor, index }) => {
+const InfoCard: React.FC<InfoCardProps> = ({ icon: Icon, title, description, color, bgColor }) => {
   return (
     <div 
-      className="p-8 bg-card rounded-xl shadow-xl hover:shadow-2xl dark:shadow-primary/10 dark:hover:shadow-primary/20 transition-all duration-300 ease-in-out border border-border/70 hover:border-primary/50 flex flex-col items-center text-center animate-fadeInUp group"
-      style={{ animationDelay: `${index * 150 + 300}ms` }}
+      className="p-8 bg-card rounded-xl shadow-xl hover:shadow-2xl dark:shadow-primary/10 dark:hover:shadow-primary/20 transition-all duration-300 ease-in-out border border-border/70 hover:border-primary/50 flex flex-col items-center text-center group"
     >
       <div className={cn(
         "p-5 rounded-full mb-6 inline-flex transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg",

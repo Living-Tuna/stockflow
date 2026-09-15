@@ -136,37 +136,6 @@ body {
   }
 }
 
-/* Custom animation for Hero Section text reveal (optional) */
-@keyframes fadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-30px); /* Increased distance */
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fadeInDown {
-  animation: fadeInDown 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; /* Smoother ease */
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px); /* Increased distance */
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fadeInUp {
-  animation: fadeInUp 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; /* Smoother ease */
-}
-
 .delay-100 { animation-delay: 0.1s; }
 .delay-200 { animation-delay: 0.2s; }
 .delay-300 { animation-delay: 0.3s; }
@@ -235,16 +204,6 @@ html {
 /* Enhanced shadow for cards on hover */
 .card-hover-effect {
    @apply shadow-lg hover:shadow-xl dark:hover:shadow-primary/10 transition-all-fast;
-}
-
-/* Page transition placeholder */
-.page-transition {
-  animation: page-fade-in 0.5s ease-out forwards;
-}
-
-@keyframes page-fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 @media print {

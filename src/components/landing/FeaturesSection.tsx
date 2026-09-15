@@ -62,24 +62,23 @@ export function FeaturesSection() {
     <section id="features" className="section-padding bg-tertiary dark:bg-background">
       <div className="section-container">
         <div className="text-center mb-16 md:mb-20">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground animate-fadeInDown">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground">
             Why <span className="text-gradient-primary">{APP_NAME}</span> is Your Best Choice
           </h2>
-          <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground animate-fadeInDown delay-200">
+          <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
             Empowering your business with features designed for growth, efficiency, and modern demands.
           </p>
         </div>
         <div className="grid gap-8 md:gap-10 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature, index) => (
+          {features.map((feature) => (
             <Card 
               key={feature.title} 
               className={cn(
                 "bg-card shadow-xl hover:shadow-2xl dark:shadow-primary/10 dark:hover:shadow-primary/20 transition-all duration-300 ease-in-out",
-                "border-t-4 rounded-xl group animate-fadeInUp",
+                "border-t-4 rounded-xl group",
                 feature.borderColor,
                 `hover:${feature.borderColor.replace("/30", "/60").replace("/40", "/70")}` 
               )}
-              style={{ animationDelay: `${index * 150 + 300}ms` }}
             >
               <CardHeader className="items-center text-center pt-10 pb-5">
                 <div className={cn(

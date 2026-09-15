@@ -67,7 +67,7 @@ export function HeroSection({ onAdminLoginClick, onStoreLoginClick }: HeroSectio
       </div>
       <div className="section-container text-center relative z-10">
         <div className="flex flex-col items-center mb-12 md:mb-16">
-          <div className="animate-fadeInDown delay-100 mb-10 transform transition-transform duration-500 hover:scale-105">
+          <div className="mb-10 transform transition-transform duration-500 hover:scale-105">
             <Image
               src={themeLogo}
               alt={`${APP_NAME} Logo`}
@@ -77,14 +77,14 @@ export function HeroSection({ onAdminLoginClick, onStoreLoginClick }: HeroSectio
               priority
             />
           </div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter text-foreground animate-fadeInDown delay-300">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter text-foreground">
             Intelligent Inventory and Billing from Del<span className="text-gradient-primary">V</span>are
           </h1>
-          <p className="mt-8 max-w-3xl text-lg md:text-xl text-muted-foreground animate-fadeInDown delay-500 leading-relaxed">
+          <p className="mt-8 max-w-3xl text-lg md:text-xl text-muted-foreground leading-relaxed">
             The ultimate solution for modern inventory management, seamless billing, staff, and multi-store operations. Streamline with efficiency and insight, beautifully.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row justify-center items-center gap-5 md:gap-8 animate-fadeInUp delay-700">
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-5 md:gap-8">
           <Button
             size="lg"
             className="bg-primary hover:bg-primary/85 text-primary-foreground shadow-lg hover:shadow-primary/40 transition-all-fast px-12 py-7 text-xl rounded-xl group transform hover:scale-105 focus:scale-105 focus:ring-4 focus:ring-primary/30"
@@ -103,10 +103,10 @@ export function HeroSection({ onAdminLoginClick, onStoreLoginClick }: HeroSectio
             <ArrowRight className="ml-2.5 h-5 w-5 text-secondary/70 group-hover:translate-x-1 transition-transform-fast" />
           </Button>
         </div>
-        <p className="mt-16 text-base text-muted-foreground animate-fadeInUp delay-700 flex items-center justify-center gap-2">
+        <p className="mt-16 text-base text-muted-foreground flex items-center justify-center gap-2">
           <ShieldCheck size={18} className="text-green-500" /> Empowering businesses with intuitive tools for <span className="font-semibold text-foreground">sustainable growth</span>.
         </p>
-        <p className="mt-8 text-sm text-muted-foreground animate-fadeInUp delay-700">
+        <p className="mt-8 text-sm text-muted-foreground">
           Try demo{' '}
           <Link href="/local" className="font-medium text-primary hover:underline">
             Click here

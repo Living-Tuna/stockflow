@@ -20,7 +20,6 @@ import { OverallFinancialSummaryStats } from '@/components/dashboard/OverallFina
 import { TopProfitableProductsChart } from '@/components/dashboard/TopProfitableProductsChart'; 
 import { getCurrencySymbol } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { usePageTransition } from '@/hooks/use-page-transition';
 
 
 function getBillTypeIconAndColor(billType: Bill['type'], isDefectiveReturn?: boolean): { icon: JSX.Element; colorClass: string; name: string } {
@@ -39,7 +38,6 @@ export default function DashboardPage() {
   const [recentBills, setRecentBills] = useState<Bill[]>([]);
   const [currencySymbol, setCurrencySymbol] = useState('₹');
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('daily');
-  const playPageTransition = usePageTransition();
 
   useEffect(() => {
     setHasMounted(true);
@@ -59,7 +57,7 @@ export default function DashboardPage() {
   }, [hasMounted, getRecentBillsFromStore]);
 
   return (
-    <div className={cn("flex flex-col gap-8", playPageTransition && "page-transition")}>
+    <div className="flex flex-col gap-8">
       <PageTitle 
         title="Admin Dashboard" 
         actions={

@@ -23,15 +23,15 @@ export function ContactSection() {
     <section id="contact" className="section-padding bg-background dark:bg-tertiary">
       <div className="section-container">
         <div className="text-center mb-16 md:mb-20">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground animate-fadeInDown">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground">
             Get in <span className="text-gradient-primary">Touch</span>
           </h2>
-          <p className="mt-6 max-w-xl mx-auto text-lg text-muted-foreground animate-fadeInDown delay-200">
+          <p className="mt-6 max-w-xl mx-auto text-lg text-muted-foreground">
             Have questions, feedback, or need support? We&apos;re here to help you succeed.
           </p>
         </div>
         <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-start">
-          <div className="space-y-10 animate-fadeInUp delay-300">
+          <div className="space-y-10">
             <div>
               <h3 className="text-2xl font-semibold text-primary mb-5">Contact Information</h3>
               <div className="space-y-5 text-muted-foreground">
@@ -58,7 +58,7 @@ export function ContactSection() {
           </div>
           <form 
             onSubmit={handleSubmit} 
-            className="space-y-8 p-8 md:p-10 bg-card rounded-2xl shadow-2xl dark:shadow-primary/15 border border-border/70 animate-fadeInUp delay-500"
+            className="space-y-8 p-8 md:p-10 bg-card rounded-2xl shadow-2xl dark:shadow-primary/15 border border-border/70"
           >
             <div>
               <Label htmlFor="contact-name" className="text-foreground font-medium text-base">Full Name</Label>

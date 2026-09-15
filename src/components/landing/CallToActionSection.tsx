@@ -9,7 +9,7 @@ import { Rocket, Sparkles } from 'lucide-react';
 export function CallToActionSection() {
   return (
     <section className="section-padding bg-gradient-to-br from-primary via-green-600 to-secondary text-primary-foreground">
-      <div className="section-container text-center animate-fadeInUp" style={{animationDelay: '0.3s'}}>
+      <div className="section-container text-center">
         <div className="inline-block p-5 bg-card/20 dark:bg-primary-foreground/10 rounded-full mb-8 shadow-lg transition-all duration-300 hover:scale-110">
           <Sparkles className="h-16 w-16 text-background dark:text-primary-foreground" />
         </div>
