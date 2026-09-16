@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { APP_NAME, SUBSCRIPTION_PLANS, SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
+import { APP_NAME, SUBSCRIPTION_PLANS, SUBSCRIPTION_PLAN_IDS, EARLY_BIRD_EVENT } from '@/lib/constants';
 import Image from 'next/image';
 import { UserPlus, XCircle, Mail, KeyRound, Building, User as UserIcon, CreditCard, Calendar, ArrowRight, CheckCircle, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,7 @@ import { BrandLoading } from '@/components/common/brand-loading';
 import { LogoSpinner } from '@/components/common/logo-spinner';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { SubscriptionType } from '@/types';
+import type { SubscriptionPlan } from '@/types';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -60,8 +61,30 @@ export function AdminSignupEmbedded({ onSignupSuccess, onCancel, onSwitchToLogin
   // Step 2 state
   const [selectedPlanId, setSelectedPlanId] = useState<string>(SUBSCRIPTION_PLAN_IDS.GROWTH);
   const [subscriptionType, setSubscriptionType] = useState<SubscriptionType>('monthly');
+  const [discountCode, setDiscountCode] = useState('');
+  const [discountApplied, setDiscountApplied] = useState(false);
 
   const plansToShow = SUBSCRIPTION_PLANS.filter(p => p.price !== -1);
+
+  const formatted = (value: number) => value.toLocaleString('en-IN');
+
+  const getPlanUnitPrice = (plan: SubscriptionPlan) =>
+    subscriptionType === 'monthly' ? plan.price : plan.yearlyPricePerMonth;
+
+  const applyCode = () => {
+    const code = discountCode.trim().toLowerCase();
+    if (!code) {
+      toast({ variant: "destructive", title: "Promo Code Required", description: "Please enter a discount code." });
+      return;
+    }
+    if (code === EARLY_BIRD_EVENT.code.toLowerCase()) {
+      setDiscountApplied(true);
+      toast({ title: "Promo Applied!", description: `${EARLY_BIRD_EVENT.discountPercent}% OFF applied to all plans. Locked in for the first ${EARLY_BIRD_EVENT.totalSlots} customers.` });
+    } else {
+      setDiscountApplied(false);
+      toast({ variant: "destructive", title: "Invalid Code", description: `This promo code is not valid. Try ${EARLY_BIRD_EVENT.code}.` });
+    }
+  };
 
   useEffect(() => {
     setHasMounted(true);
@@ -173,6 +196,7 @@ export function AdminSignupEmbedded({ onSignupSuccess, onCancel, onSwitchToLogin
           companyName, adminName, email, password,
           planId: selectedPlanId,
           subscriptionType,
+          discountCode: discountApplied && discountCode.trim().toLowerCase() === EARLY_BIRD_EVENT.code.toLowerCase() ? discountCode.trim().toLowerCase() : undefined,
         }),
       });
 
@@ -264,6 +288,9 @@ export function AdminSignupEmbedded({ onSignupSuccess, onCancel, onSwitchToLogin
                 >
                     {plansToShow.map(plan => {
                         const isSelected = selectedPlanId === plan.id;
+                        const unitPrice = getPlanUnitPrice(plan);
+                        const origUnitPrice = subscriptionType === 'monthly' ? plan.price : plan.yearlyPricePerMonth;
+                        const yearlyTotal = plan.yearlyPricePerMonth * 12;
                         return (
                             <Label
                                 key={plan.id}
@@ -277,12 +304,22 @@ export function AdminSignupEmbedded({ onSignupSuccess, onCancel, onSwitchToLogin
                             >
                                 <RadioGroupItem value={plan.id} id={plan.id} className="h-5 w-5 mt-1 md:mt-0 shrink-0" />
                                 <div className="flex-1">
-                                    <div className="flex flex-col md:flex-row justify-between md:items-center">
+                                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-1">
                                         <h3 className="font-bold text-lg text-foreground">{plan.name}</h3>
-                                        <p className="text-lg font-bold text-primary">
-                                            ₹{plan.price}
+                                        <div className="text-lg font-bold text-primary">
+                                            {discountApplied && (
+                                                <span className="text-sm font-normal text-muted-foreground line-through mr-2">
+                                                    ₹{formatted(origUnitPrice)}
+                                                </span>
+                                            )}
+                                            ₹{formatted(discountApplied ? Math.round(unitPrice * 0.5) : unitPrice)}
                                             <span className="text-sm font-normal text-muted-foreground">{plan.priceSuffix}</span>
-                                        </p>
+                                            <div className="text-xs font-normal text-muted-foreground mt-0.5">
+                                                {subscriptionType === 'yearly'
+                                                    ? `Billed ₹${formatted(discountApplied ? Math.round(yearlyTotal * 0.5) : yearlyTotal)} / year`
+                                                    : 'Billed monthly'}
+                                            </div>
+                                        </div>
                                     </div>
                                     <p className="text-sm text-muted-foreground mt-1">
                                         {
@@ -316,10 +353,36 @@ export function AdminSignupEmbedded({ onSignupSuccess, onCancel, onSwitchToLogin
                             <RadioGroupItem value="yearly" id="yearly-cycle" />
                             <div className="flex flex-col items-center">
                                 <span className="font-medium">Yearly</span>
-                                <span className="text-xs text-primary">Save 15%</span>
+                                <span className="text-xs text-primary">Save up to 20%</span>
                             </div>
                         </Label>
                     </RadioGroup>
+                </div>
+
+                <div className="pt-4 border-t">
+                    <Label className="font-semibold block mb-2">Promo Code</Label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Input
+                            type="text"
+                            value={discountCode}
+                            onChange={(e) => setDiscountCode(e.target.value)}
+                            placeholder={`Enter code e.g. ${EARLY_BIRD_EVENT.code}`}
+                            disabled={discountApplied}
+                            className="flex-1"
+                        />
+                        <Button type="button" variant={discountApplied ? "outline" : "default"} onClick={applyCode} disabled={discountApplied || isSubmitting}>
+                            {discountApplied ? 'Applied' : 'Apply'}
+                        </Button>
+                    </div>
+                    {discountApplied ? (
+                        <p className="text-xs text-green-600 mt-2 font-semibold">
+                            {EARLY_BIRD_EVENT.discountPercent}% OFF applied! Your discounted prices are shown above.
+                        </p>
+                    ) : (
+                        <p className="text-xs text-muted-foreground mt-2">
+                            Use <code className="font-mono font-bold text-primary">{EARLY_BIRD_EVENT.code}</code> to get {EARLY_BIRD_EVENT.discountPercent}% OFF. Limited to the first {EARLY_BIRD_EVENT.totalSlots} customers.
+                        </p>
+                    )}
                 </div>
 
                 <div className="text-center p-3 bg-tertiary rounded-md text-sm text-tertiary-foreground">

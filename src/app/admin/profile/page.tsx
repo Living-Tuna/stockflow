@@ -334,9 +334,16 @@ export default function ProfilePage() {
                 {plan.price === -1 ? (
                     <span className="text-3xl font-bold">Contact Us</span>
                 ) : (
-                    <div className="flex items-baseline">
-                        <span className="text-3xl font-bold text-foreground">₹{plan.price}</span>
-                        <span className="text-sm text-muted-foreground ml-1">{plan.priceSuffix}</span>
+                    <div>
+                        <div className="flex items-baseline">
+                            <span className="text-3xl font-bold text-foreground">₹{plan.price.toLocaleString('en-IN')}</span>
+                            <span className="text-sm text-muted-foreground ml-1">{plan.priceSuffix}</span>
+                        </div>
+                        <div className="flex items-baseline flex-wrap gap-1.5 mt-1 text-sm">
+                            <span className="text-muted-foreground">Yearly:</span>
+                            <span className="text-green-600 font-semibold">₹{plan.yearlyPricePerMonth.toLocaleString('en-IN')}/mo</span>
+                            <span className="text-muted-foreground">({plan.yearlyPricePerMonth.toLocaleString('en-IN')}×12) = ₹{(plan.yearlyPricePerMonth * 12).toLocaleString('en-IN')}/yr</span>
+                        </div>
                     </div>
                 )}
               </CardHeader>

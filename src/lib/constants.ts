@@ -106,9 +106,10 @@ export const SUBSCRIPTION_PLAN_IDS = {
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
    {
     id: SUBSCRIPTION_PLAN_IDS.ADMIN_ONLY,
-    name: 'Basic Admin',
-    price: 0, 
+    name: 'Admin',
+    price: 499,
     priceSuffix: '/ month',
+    yearlyPricePerMonth: 400,
     features: [
         'Admin Dashboard Access',
         'Product Management',
@@ -122,8 +123,9 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: SUBSCRIPTION_PLAN_IDS.STARTER,
     name: 'Starter',
-    price: 199,
+    price: 999,
     priceSuffix: '/ month',
+    yearlyPricePerMonth: 900,
     features: [
         '1 Store',
         'Up to 2 Employees',
@@ -140,6 +142,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     name: 'Growth',
     price: 1999,
     priceSuffix: '/ month',
+    yearlyPricePerMonth: 1599,
     features: [
         'Up to 3 Stores',
         'Up to 10 Employees',
@@ -154,8 +157,9 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: SUBSCRIPTION_PLAN_IDS.PRO,
     name: 'Pro',
-    price: 9999,
+    price: 4999,
     priceSuffix: '/ month',
+    yearlyPricePerMonth: 4000,
     features: [
         'Unlimited Stores',
         'Unlimited Employees',
@@ -171,6 +175,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     name: 'Enterprise',
     price: -1, 
     priceSuffix: 'Custom Pricing',
+    yearlyPricePerMonth: -1,
     features: [
         'Custom Store & Employee Limits',
         'All Pro Features',
@@ -181,6 +186,13 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     maxEmployees: Infinity,
   },
 ];
+
+export const EARLY_BIRD_EVENT = {
+  code: 'earlybird500',
+  discountPercent: 50,
+  totalSlots: 500,
+  expiresAt: '2026-12-31T23:59:59Z',
+};
 
 export const SUPPORTED_CURRENCIES: CurrencyOption[] = [
   { code: 'INR', symbol: '₹', name: 'Indian Rupee' },

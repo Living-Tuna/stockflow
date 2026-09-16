@@ -150,6 +150,8 @@ export interface Company {
   subscriptionStartDate?: string | null;
   subscriptionExpiryDate?: string | null;
   pendingSubscriptionId?: string | null;
+  discountCode?: string | null;
+  discountPercent?: number | null;
 }
 
 export interface User {
@@ -183,6 +185,7 @@ export interface SubscriptionPlan {
   name: string;
   price: number;
   priceSuffix: string;
+  yearlyPricePerMonth: number;
   features: string[];
   maxStores: number;
   maxEmployees: number;

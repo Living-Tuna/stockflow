@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import type { User, Company, SubscriptionType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
-import { SUBSCRIPTION_PLAN_IDS, DEFAULT_CURRENCY_CODE } from '@/lib/constants';
+import { SUBSCRIPTION_PLAN_IDS, DEFAULT_CURRENCY_CODE, EARLY_BIRD_EVENT } from '@/lib/constants';
 import bcrypt from 'bcryptjs';
 
 const SHARED_AUTH_TOKEN_ADMIN_EMPLOYEE = "DEMO_SHARED_AUTH_TOKEN_ADMIN_EMPLOYEE_V2";
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     const { db } = await connectToDatabase();
     const body = await req.json();
-    const { companyName, adminName, email, password, planId, subscriptionType } = body;
+    const { companyName, adminName, email, password, planId, subscriptionType, discountCode } = body;
 
     if (!companyName || !adminName || !email || !password || !planId || !subscriptionType) {
       console.warn(`${routeNamePrefix} Missing required fields for signup.`);
@@ -34,6 +34,29 @@ export async function POST(req: NextRequest) {
     if (existingAdmin) {
       console.warn(`${routeNamePrefix} Signup attempt with existing admin email: ${email}.`);
       return NextResponse.json({ success: false, message: 'An admin account with this email already exists.' }, { status: 409 });
+    }
+
+    let appliedDiscountCode: string | undefined;
+    let appliedDiscountPercent: number | undefined;
+    if (discountCode) {
+      const normalizedCode = String(discountCode).trim().toLowerCase();
+      if (normalizedCode !== EARLY_BIRD_EVENT.code.toLowerCase()) {
+        console.warn(`${routeNamePrefix} Invalid discount code provided: ${discountCode}.`);
+        return NextResponse.json({ success: false, message: 'That promo code is not valid. Try earlybird500.' }, { status: 400 });
+      }
+      const eventActive = Date.now() < new Date(EARLY_BIRD_EVENT.expiresAt).getTime();
+      const usedSlots = await db.collection('companies').countDocuments({ discountCode: EARLY_BIRD_EVENT.code });
+      if (!eventActive) {
+        console.warn(`${routeNamePrefix} Early bird offer has expired.`);
+        return NextResponse.json({ success: false, message: 'Sorry, the early bird offer has expired.' }, { status: 400 });
+      }
+      if (usedSlots >= EARLY_BIRD_EVENT.totalSlots) {
+        console.warn(`${routeNamePrefix} Early bird slots exhausted (${usedSlots}/${EARLY_BIRD_EVENT.totalSlots}).`);
+        return NextResponse.json({ success: false, message: 'Sorry, all early bird discount slots are taken.' }, { status: 400 });
+      }
+      appliedDiscountCode = normalizedCode;
+      appliedDiscountPercent = EARLY_BIRD_EVENT.discountPercent;
+      console.log(`${routeNamePrefix} Valid early bird code applied. Slots used: ${usedSlots}/${EARLY_BIRD_EVENT.totalSlots}.`);
     }
 
     const newCompanyId = `comp_${uuidv4()}`;
@@ -56,6 +79,8 @@ export async function POST(req: NextRequest) {
       creationDate: new Date().toISOString(),
       subscriptionStartDate: null,
       subscriptionExpiryDate: null,
+      discountCode: appliedDiscountCode ?? null,
+      discountPercent: appliedDiscountPercent ?? null,
     };
     await db.collection<Company>('companies').insertOne(newCompany);
     console.log(`${routeNamePrefix} New company created: ${newCompany.name} (ID: ${newCompanyId}). Payment status: PENDING.`);
