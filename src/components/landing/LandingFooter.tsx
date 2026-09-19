@@ -2,10 +2,12 @@
 "use client";
 
 import { APP_NAME } from '@/lib/constants';
+import { useThemeLogo } from '@/hooks/use-theme-logo';
 import Link from 'next/link';
-import { Github, Linkedin, Twitter, Package2 } from 'lucide-react'; 
+import { Github, Linkedin, Twitter } from 'lucide-react'; 
 
 export function LandingFooter() {
+  const themeLogo = useThemeLogo();
   const currentYear = new Date().getFullYear();
   return (
     <footer className="section-padding pb-12 md:pb-16 border-t border-border/50 bg-muted/30 dark:bg-secondary/10">
@@ -13,7 +15,7 @@ export function LandingFooter() {
         <div className="grid md:grid-cols-3 gap-10 items-center">
           <div className="flex flex-col items-center md:items-start">
              <Link href="/" className="flex items-center gap-3 mb-4 transition-opacity hover:opacity-80 group">
-                <Package2 className="h-10 w-10 text-primary group-hover:animate-pulse" />
+                <img src={themeLogo} alt={`${APP_NAME} logo`} className="h-10 w-10 rounded-lg object-contain" />
                 <span className="text-3xl font-bold text-primary">{APP_NAME}</span>
             </Link>
             <p className="text-base text-muted-foreground text-center md:text-left">

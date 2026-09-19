@@ -24,7 +24,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 const THEME_STORAGE_KEY = "app-color-theme";
 
 const themes = [
-  { name: 'default', color: 'hsl(145 60% 40%)' },
+  { name: 'default', color: 'hsl(142.1 76.2% 36.3%)' },
   { name: 'zinc', color: 'hsl(240 5.9% 10%)' },
   { name: 'slate', color: 'hsl(215.4 16.3% 46.9%)' },
   { name: 'red', color: 'hsl(0 72.2% 50.6%)' },

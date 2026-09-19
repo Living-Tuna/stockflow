@@ -18,8 +18,8 @@ body {
     --popover-foreground: 224 71.4% 4.1%;
     --primary: 145 55% 32%;
     --primary-foreground: 145 60% 96%;
-    --secondary: 145 35% 45%;
-    --secondary-foreground: 145 60% 96%;
+    --secondary: 142.1 76.2% 36.3%;
+    --secondary-foreground: 142.1 76.2% 96.3%;
     --tertiary: 220 15% 96.5%;
     --tertiary-foreground: 220 10% 35%;
     --muted: 220 10% 90%;
@@ -47,7 +47,7 @@ body {
     --popover-foreground: 210 20% 95%;
     --primary: 145 50% 38%;
     --primary-foreground: 145 30% 96%;
-    --secondary: 145 35% 50%;
+    --secondary: 142.1 60% 45%;
     --secondary-foreground: 145 30% 96%;
     --tertiary: 224 71.4% 15%;
     --tertiary-foreground: 210 15% 70%;
@@ -81,8 +81,8 @@ body {
   .dark[data-theme='orange'] { --primary: 24.6 95% 53.1%; --primary-foreground: 20 14.3% 4.1%; --secondary: 24.6 95% 15.1%; --secondary-foreground: 20 14.3% 97.3%; --ring: 24.6 95% 53.1%; }
 
   /* GREEN THEME */
-  [data-theme='green'] { --primary: 142.1 76.2% 36.3%; --primary-foreground: 142.1 76.2% 96.3%; --secondary: 142.1 76.2% 95.1%; --secondary-foreground: 142.1 76.2% 36.3%; --ring: 142.1 76.2% 36.3%; }
-  .dark[data-theme='green'] { --primary: 142.1 76.2% 36.3%; --primary-foreground: 142.1 76.2% 96.3%; --secondary: 142.1 76.2% 15.1%; --secondary-foreground: 142.1 76.2% 96.3%; --ring: 142.1 76.2% 36.3%; }
+  [data-theme='green'] { --primary: 145 55% 32%; --primary-foreground: 142.1 76.2% 96.3%; --secondary: 142.1 76.2% 36.3%; --secondary-foreground: 142.1 76.2% 96.3%; --ring: 142.1 76.2% 36.3%; }
+  .dark[data-theme='green'] { --primary: 142.1 76.2% 36.3%; --primary-foreground: 142.1 76.2% 96.3%; --secondary: 142.1 60% 45%; --secondary-foreground: 142.1 76.2% 96.3%; --ring: 142.1 76.2% 36.3%; }
 
   /* BLUE THEME */
   [data-theme='blue'] { --primary: 221.2 83.2% 53.3%; --primary-foreground: 210 40% 98%; --secondary: 221.2 83.2% 95.1%; --secondary-foreground: 221.2 83.2% 53.3%; --ring: 221.2 83.2% 53.3%; }
