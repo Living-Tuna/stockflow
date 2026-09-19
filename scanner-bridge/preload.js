@@ -3,12 +3,15 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('ecbillsBridge', {
-  version: '1.0.0',
+  version: '1.1.0',
 
   getConfig: () => ipcRenderer.invoke('config:get'),
   setConfig: (partial) => ipcRenderer.invoke('config:set', partial),
   getStatus: () => ipcRenderer.invoke('status:get'),
   checkOrigin: (origin) => ipcRenderer.invoke('origin:check', origin),
+
+  getDevices: () => ipcRenderer.invoke('devices:get'),
+  assignDevice: (role, name) => ipcRenderer.invoke('devices:assign', { role, name }),
 
   addProduct: (productData, companyId) => ipcRenderer.invoke('products:add', { productData, companyId }),
   listProducts: (companyId) => ipcRenderer.invoke('products:list', companyId),

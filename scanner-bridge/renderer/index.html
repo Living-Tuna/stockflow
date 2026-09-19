@@ -11,47 +11,144 @@
     <div class="brand">
       <div class="logo">ECB</div>
       <div>
-        <h1>ecbills Scanner Bridge</h1>
-        <p class="sub">USB barcode/QR capture + quick product portal for the web billing app.</p>
+        <h1>ecbills Scanner Bridge <span class="ver" id="bridgeVersion">v1.1.0</span></h1>
+        <p class="sub">USB barcode reader + label &amp; bill printers, synced with your billing screen.</p>
       </div>
     </div>
     <div class="status-pills" id="statusPills"></div>
   </header>
 
   <nav class="tabs" id="tabs">
-    <button class="tab active" data-tab="connect">Connection</button>
+    <button class="tab active" data-tab="devices">Devices</button>
     <button class="tab" data-tab="scanner">Scanner</button>
     <button class="tab" data-tab="products">Add Product</button>
     <button class="tab" data-tab="labels">Labels</button>
+    <button class="tab" data-tab="connect">Connection</button>
   </nav>
 
-  <!-- CONNECTION -->
-  <section class="tabpanel active" id="panel-connect">
-    <div class="card">
-      <h2>Web App Connection</h2>
-      <p class="hint">The portal talks to your ecbills web billing app over this device&rsquo;s loopback interface. Browsers open on the billing page connect to the WebSocket below and auto-add scanned products.</p>
-
-      <label>Web App URL</label>
-      <div class="row">
-        <input id="origin" type="text" placeholder="http://localhost:9002" />
-        <button id="checkOrigin" class="btn secondary">Test</button>
+  <!-- DEVICES DASHBOARD -->
+  <section class="tabpanel active" id="panel-devices">
+    <div class="dash-head">
+      <div>
+        <h2>Hardware &amp; Sync</h2>
+        <p class="hint">Live view of the peripherals the bridge has detected and the printer each job is sent to.</p>
       </div>
-      <div id="originResult" class="note"></div>
-
-      <label>Company ID</label>
-      <input id="companyId" type="text" placeholder="Paste your company ID from the web app" />
-
-      <label>Bridge Port (loopback only)</label>
-      <input id="port" type="number" min="1024" max="65535" placeholder="9080" />
-
-      <div class="row end">
-        <button id="saveConfig" class="btn primary">Save Settings</button>
-      </div>
+      <span class="updated" id="devicesUpdated">•</span>
     </div>
 
-    <div class="card">
-      <h2>Service Status</h2>
-      <ul class="status-list" id="serviceStatus"></ul>
+    <div class="dev-grid">
+
+      <!-- BARCODE READER -->
+      <article class="device" id="card-reader">
+        <div class="dev-top">
+          <div class="dev-icon reader">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8h1"/><path d="M10 8h1"/><path d="M13 8h1"/><path d="M16 8h1"/><path d="M7 12h1"/><path d="M10 12h1"/><path d="M13 12h1"/><path d="M16 12h1"/><path d="M7 16h1"/><path d="M10 16h1"/><path d="M13 16h1"/><path d="M16 16h1"/></svg>
+          </div>
+          <div class="dev-title">
+            <h3>Barcode Reader</h3>
+            <p>USB keyboard-wedge scanner</p>
+          </div>
+          <span class="badge" id="readerBadge">Standby</span>
+        </div>
+
+        <div class="dev-body reader-focus">
+          <div class="toggle-row">
+            <label class="switch">
+              <input type="checkbox" id="scannerActive" />
+              <span class="slider"></span>
+            </label>
+            <div>
+              <div class="toggle-title" id="scannerStateTitle">Scanner Listening: OFF</div>
+              <div class="note">Keep this window focused, or use the tray menu — every scan lands straight on the billing screen.</div>
+            </div>
+          </div>
+
+          <div class="stat-row">
+            <div class="stat">
+              <span class="stat-label">Scans today</span>
+              <span class="stat-value" id="devScansToday">0</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Last scan</span>
+              <span class="stat-value subtle" id="devLastScan">—</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Last code</span>
+              <span class="stat-value mono subtle" id="devLastCode">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="beam"></div>
+      </article>
+
+      <!-- BARCODE / LABEL PRINTER -->
+      <article class="device" id="card-label">
+        <div class="dev-top">
+          <div class="dev-icon label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="6" x="4" y="10" rx="2"/><path d="M14 19h.01"/><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/><rect width="10" height="1.4" x="7" y="12.4" fill="currentColor" stroke="none" rx="0.7"/></svg>
+          </div>
+          <div class="dev-title">
+            <h3>Barcode / Label Printer</h3>
+            <p>Ships barcode + QR labels</p>
+          </div>
+          <span class="badge" id="labelBadge">Checking…</span>
+        </div>
+
+        <div class="dev-body">
+          <label for="labelPrinterSelect" class="field-label">Send labels to</label>
+          <select id="labelPrinterSelect"></select>
+          <div class="row end">
+            <button id="labelTestBtn" class="btn primary">Print Test Label</button>
+          </div>
+          <div id="labelResult" class="note"></div>
+        </div>
+      </article>
+
+      <!-- BILL / RECEIPT PRINTER -->
+      <article class="device" id="card-receipt">
+        <div class="dev-top">
+          <div class="dev-icon receipt">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12"/><path d="M6 11h12"/><path d="M6 15h8"/><path d="M6 19h6"/><rect width="16" height="18" x="4" y="3" rx="2"/></svg>
+          </div>
+          <div class="dev-title">
+            <h3>Bill / Receipt Printer</h3>
+            <p>Prints bills &amp; documents</p>
+          </div>
+          <span class="badge" id="receiptBadge">Checking…</span>
+        </div>
+
+        <div class="dev-body">
+          <label for="receiptPrinterSelect" class="field-label">Send bills to</label>
+          <select id="receiptPrinterSelect"></select>
+          <div class="row end">
+            <button id="receiptTestBtn" class="btn primary">Print Test Bill</button>
+          </div>
+          <div id="receiptResult" class="note"></div>
+        </div>
+      </article>
+
+      <!-- WEB APP SYNC -->
+      <article class="device" id="card-sync">
+        <div class="dev-top">
+          <div class="dev-icon sync">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-15.6-4.9L3 9"/><path d="M3 4v5h5"/><path d="M3 12a9 9 0 0 0 15.6 4.9L21 15"/><path d="M21 20v-5h-5"/></svg>
+          </div>
+          <div class="dev-title">
+            <h3>Web App Sync</h3>
+            <p>The billing screen on this PC</p>
+          </div>
+          <span class="badge" id="syncBadge">Offline</span>
+        </div>
+
+        <div class="dev-body">
+          <ul class="kv" id="serviceStatus"></ul>
+          <div class="row">
+            <button id="syncTestBtn" class="btn">Test Connection</button>
+          </div>
+        </div>
+        <div id="originResult" class="note pad"></div>
+      </article>
+
     </div>
   </section>
 
@@ -67,11 +164,11 @@
 
       <div class="scanner-toggle">
         <label class="switch">
-          <input type="checkbox" id="scannerActive" />
+          <input type="checkbox" id="scannerToggleScan" />
           <span class="slider"></span>
         </label>
         <div>
-          <div class="toggle-title" id="scannerStateTitle">Scanner Listening: OFF</div>
+          <div class="toggle-title" id="scannerStateTitle2">Scanner Listening: OFF</div>
           <div class="note">Focus this window, then scan. When the window loses focus, checks the bridge tray menu.</div>
         </div>
       </div>
@@ -178,7 +275,7 @@
   <section class="tabpanel" id="panel-labels">
     <div class="card">
       <h2>Print Barcode Labels</h2>
-      <p class="hint">Generates Code-128 + QR labels for the selected products and sends them to your printer.</p>
+      <p class="hint">Generates Code-128 + QR labels for the selected products and sends them to your label printer.</p>
       <label>Products</label>
       <select id="labelProductSelect" multiple size="8"></select>
       <div class="row">
@@ -194,8 +291,32 @@
     </div>
   </section>
 
+  <!-- CONNECTION -->
+  <section class="tabpanel" id="panel-connect">
+    <div class="card">
+      <h2>Web App Connection</h2>
+      <p class="hint">The portal talks to your ecbills web billing app over this device&rsquo;s loopback interface. Browsers open on the billing page connect to the WebSocket below and auto-add scanned products.</p>
+
+      <label>Web App URL</label>
+      <div class="row">
+        <input id="origin" type="text" placeholder="http://localhost:9002" />
+      </div>
+
+      <label>Company ID</label>
+      <input id="companyId" type="text" placeholder="Paste your company ID from the web app" />
+
+      <label>Bridge Port (loopback only)</label>
+      <input id="port" type="number" min="1024" max="65535" placeholder="9080" />
+
+      <div class="row end">
+        <button id="saveConfig" class="btn primary">Save Settings</button>
+      </div>
+      <div id="connectResult" class="note"></div>
+    </div>
+  </section>
+
   <footer class="foot">
-    Run <code>npm run start</code> in <code>scanner-bridge</code>. Packaged EXE: <code>npm run dist</code> (Windows) / <code>npm run dist:linux</code>.
+    ecbills Scanner Bridge <span id="footVersion">v1.0.0</span> &middot; run <code>npm run start</code> in <code>scanner-bridge</code>. Packaged installers: <code>npm run dist</code> (Windows) / <code>npm run dist:linux</code>.
   </footer>
 
   <script src="./app.js"></script>

@@ -9,11 +9,17 @@ const { WebSocketServer } = require('ws');
 const bwipjs = require('bwip-js');
 const QRCode = require('qrcode');
 
-const APP_BRIDGE_VERSION = '1.0.0';
+// Disable GPU acceleration: avoids blank / black windows on many Linux setups
+// (VMs, older drivers, Wayland quirks) and keeps rendering rock-solid.
+app.disableHardwareAcceleration();
+
+const APP_BRIDGE_VERSION = '1.1.0';
 const DEFAULT_CONFIG = {
   origin: 'http://localhost:9002',
   port: 9080,
   companyId: '',
+  labelPrinter: '',
+  receiptPrinter: '',
 };
 
 let mainWindow = null;
@@ -291,6 +297,83 @@ async function printBridgeLabels(labels, columns, deviceName) {
   }
 }
 
+// ---------------- Device inventory (printers + scanner) ----------------
+
+const LABEL_PRINTER_HINTS = [
+  /barcode/i, /label/i, /zebra/i, /godex/i, /dyemo/i, /dymo/i, /tsc(\s|-)?\d/i,
+  /sato/i, /datamax/i, /brother/i, /gprinter/i, /tsp(\s|-)?\d/i, /fargo/i,
+  /(\s|^)rl(\d|\s|$)/i, /xd(\d|$)/i, /tp-?\d/i, /gc-?\d/i, /cab(\s|$)/i, /psc/i,
+];
+const RECEIPT_PRINTER_HINTS = [
+  /receipt/i, /bill/i, /thermal/i, /pos/i, /impact/i, /epson/i, /tm-?\d/i,
+  /star(\s|$)/i, /hcc/i, /citizen/i, /custom/i, /bixolon/i, /dascom/i,
+  /rongta/i, /huiju/i, /jolimark/i, /gtp/i, /eii/i, /sii/i, /srn\b/i,
+];
+
+function classifyPrinter(name) {
+  const n = String(name || '');
+  if (LABEL_PRINTER_HINTS.some((re) => re.test(n))) return 'label';
+  if (RECEIPT_PRINTER_HINTS.some((re) => re.test(n))) return 'receipt';
+  return 'general';
+}
+
+function bestPrinter(list, role) {
+  const inRole = list.filter((p) => p.role === role);
+  const chosen = inRole.find((p) => p.isDefault) || inRole[0];
+  if (chosen) return chosen.name;
+  if (role === 'receipt') {
+    const def = list.find((p) => p.isDefault);
+    if (def) return def.name;
+  }
+  return list[0] ? list[0].name : '';
+}
+
+async function getDevices() {
+  let printers = [];
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const listed = await mainWindow.webContents.getPrintersAsync();
+      printers = listed.map((p) => ({
+        name: p.name,
+        displayName: p.displayName || p.name,
+        isDefault: Boolean(p.isDefault),
+        role: classifyPrinter(p.name),
+      }));
+    }
+  } catch {
+    // Enumeration is best-effort; the window may not exist yet.
+  }
+
+  const now = Date.now();
+  const last = scanLedger[0];
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const scansToday = scanLedger.filter((e) => e.at >= dayStart.getTime()).length;
+
+  return {
+    version: APP_BRIDGE_VERSION,
+    serviceMode,
+    server: {
+      serverUp: Boolean(wss),
+      port: Number(config.port) || 9080,
+      origin: config.origin,
+      companyId: config.companyId,
+      clients: wss ? wss.clients.size : 0,
+    },
+    scanner: {
+      listening: captureActive,
+      lastScanAt: last ? last.at : 0,
+      lastCode: last ? last.code : '',
+      scansToday,
+    },
+    printers,
+    assigned: {
+      label: config.labelPrinter || bestPrinter(printers, 'label'),
+      receipt: config.receiptPrinter || bestPrinter(printers, 'receipt'),
+    },
+  };
+}
+
 // ---------------- Window + tray ----------------
 
 function sendStatus() {
@@ -307,21 +390,28 @@ function sendStatus() {
   });
 }
 
+function showPortalWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+}
+
 function createPortalWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.show();
-    mainWindow.focus();
+    showPortalWindow();
     return;
   }
 
   mainWindow = new BrowserWindow({
-    width: 980,
-    height: 760,
-    minWidth: 760,
-    minHeight: 560,
+    width: 1040,
+    height: 800,
+    minWidth: 840,
+    minHeight: 600,
     title: 'ecbills Scanner Bridge',
     icon: getIcon(),
     show: false,
+    autoHideMenuBar: true,
+    backgroundColor: '#0b1220',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -331,7 +421,7 @@ function createPortalWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', showPortalWindow);
 
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
@@ -350,7 +440,31 @@ function createPortalWindow() {
 
   mainWindow.webContents.on('did-finish-load', () => {
     sendStatus();
+    // Fallback for platforms where 'ready-to-show' never fires:
+    // if the page rendered but the window is still hidden, surface it.
+    if (!mainWindow.isVisible()) setTimeout(showPortalWindow, 250);
   });
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[bridge] Renderer crashed:', details && details.reason);
+  });
+  if (process.env.BRIDGE_DEBUG) {
+    mainWindow.webContents.on('console-message', (_event, level, message) => {
+      console.log('[renderer]', level, message);
+    });
+  }
+  if (process.env.BRIDGE_SCREENSHOT) {
+    setTimeout(async () => {
+      try {
+        const image = await mainWindow.webContents.capturePage();
+        const out = process.env.BRIDGE_SCREENSHOT;
+        fs.writeFileSync(out, image.toPNG());
+        console.log('[bridge] screenshot saved to', out);
+      } catch (err) {
+        console.error('[bridge] screenshot failed:', err && err.message);
+      }
+    }, 2000);
+  }
 }
 
 function getIcon() {
@@ -447,6 +561,14 @@ function registerIpc() {
     version: APP_BRIDGE_VERSION,
   }));
 
+  ipcMain.handle('devices:get', () => getDevices());
+
+  ipcMain.handle('devices:assign', (_event, { role, name }) => {
+    if (role === 'label') saveConfig({ labelPrinter: name });
+    else if (role === 'receipt') saveConfig({ receiptPrinter: name });
+    return getDevices();
+  });
+
   ipcMain.handle('origin:check', (_event, origin) => checkOrigin(origin || config.origin));
 
   ipcMain.handle('scanner:set-active', (_event, active) => {
@@ -498,11 +620,8 @@ if (!gotLock) {
     createPortalWindow();
   });
 
-  app.on('window-all-closed', (event) => {
-    // Prevent quitting to tray exit; keep the server running on Linux/macOS.
-    if (!isQuitting) {
-      event.preventDefault();
-    }
+  app.on('window-all-closed', () => {
+    // Stay alive in the tray on every platform; the portal window only ever hides.
   });
 
   app.on('before-quit', () => {
