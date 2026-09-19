@@ -130,7 +130,10 @@ function LocalSidebarNavMenu() {
                       "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
                       (isActive || isChildActive) ? "bg-primary text-primary-foreground" : "bg-primary/15 text-secondary-foreground/60 group-hover/menu-button:text-primary-foreground"
                     )}>
-                      <link.icon className="h-[18px] w-[18px]" />
+                      <link.icon className={cn(
+                        "transition-all",
+                        sidebarState === 'collapsed' ? "h-6 w-6 stroke-[2.5]" : "h-[18px] w-[18px]",
+                      )} />
                     </span>
                     {sidebarState === 'expanded' && (
                       <span className="flex min-w-0 flex-col gap-0.5 truncate">

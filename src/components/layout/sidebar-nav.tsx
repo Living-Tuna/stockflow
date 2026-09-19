@@ -106,7 +106,11 @@ function SidebarNavMenu() {
                   onClick={(e) => { if (isDisabledBySubscription) e.preventDefault(); }}
                 >
                   <span className="relative">
-                    <link.icon className={cn("h-5 w-5 shrink-0", (isActive || isChildActive) && "text-primary-foreground")} />
+                    <link.icon className={cn(
+                        "shrink-0 transition-all",
+                        sidebarState === 'collapsed' ? "h-6 w-6 stroke-[2.5]" : "h-5 w-5",
+                        (isActive || isChildActive) && "text-primary-foreground"
+                      )} />
                     {isChildActive && (
                       <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary" />
                     )}
