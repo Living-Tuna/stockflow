@@ -19,7 +19,7 @@ import { EmployeePasskeyDialog } from './employee-passkey-dialog';
 import { NewProductDialog } from './new-product-dialog';
 import { UnifiedScannerModal } from '@/components/common/UnifiedScannerModal';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { generatePrintContent, triggerPrint } from '@/lib/print-utils';
 import { Printer } from 'lucide-react';
@@ -198,6 +198,15 @@ export function BillingForm({
     if (mode !== 'return' || currentBillItems.length === 0) return 0;
     return computeReturnRefundAmount(currentBillItems);
   }, [mode, currentBillItems]);
+
+  const returnSourceOptions = useMemo(
+    () => returnableSaleBills.map(bill => ({
+      value: bill.id,
+      label: `#${bill.invoiceNumber || bill.id}`,
+      detail: `${bill.vendorOrCustomerName || 'Walk-in Customer'} · ${format(new Date(bill.date), 'dd MMM yyyy')} · ₹${bill.totalAmount.toFixed(2)}`,
+    })),
+    [returnableSaleBills]
+  );
 
   // Pre-select the original sale bill when arriving via ?mode=return&returnBillId=...
   useEffect(() => {
@@ -635,21 +644,14 @@ export function BillingForm({
                 <Label htmlFor="returnSourceBill" className="text-sm font-medium">
                   Return / Exchange Against (Original Sale Bill)
                 </Label>
-                <Select value={returnSourceBillId} onValueChange={setReturnSourceBillId}>
-                  <SelectTrigger id="returnSourceBill">
-                    <SelectValue placeholder="Select the original sale bill..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {returnableSaleBills.length === 0 && (
-                      <div className="px-3 py-2 text-xs text-muted-foreground">No sale bills available to return against.</div>
-                    )}
-                    {returnableSaleBills.map(bill => (
-                      <SelectItem key={bill.id} value={bill.id}>
-                        #{bill.invoiceNumber || bill.id} · {bill.vendorOrCustomerName || 'Walk-in Customer'} · {format(new Date(bill.date), 'dd MMM yyyy')} · ₹{bill.totalAmount.toFixed(2)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  options={returnSourceOptions}
+                  value={returnSourceBillId}
+                  onValueChange={setReturnSourceBillId}
+                  placeholder="Search & select the original sale bill..."
+                  searchPlaceholder="Search bill id, customer, amount..."
+                  emptyText="No sale bills available to return against."
+                />
               </div>
               {returnSourceBill && (
                 <div className="space-y-1.5 text-sm">
