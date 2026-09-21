@@ -333,6 +333,14 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
     triggerPrint(printContent);
   };
 
+  // Navigate to the billing form pre-configured for a return/exchange against this sale bill.
+  const handleInitiateReturn = useCallback((bill: Bill) => {
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    params.set('mode', 'return');
+    params.set('returnBillId', bill.id);
+    window.location.assign(`${window.location.pathname}?${params.toString()}`);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center p-12">
@@ -417,6 +425,28 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
                       <p className="text-xs text-muted-foreground">Bill Type</p>
                       <p className="font-medium text-sm">{getBillTypeName(selectedBill)}</p>
                     </div>
+                    {selectedBill.type === 'return' && (
+                      <>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Original Sale Bill</p>
+                          <p className="font-mono text-sm">
+                            {selectedBill.originalBillId
+                              ? <a className="text-primary underline underline-offset-2 cursor-pointer" onClick={() => { const original = allBillsFromStore.find(b => b.id === (selectedBill.originalBillId || '')); if (original) { setSelectedBill(original); setIsViewDialogOpen(true); } }}>{selectedBill.originalBillId}</a>
+                              : <span className="text-muted-foreground">— (not linked)</span>}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Return Type</p>
+                          <p className="font-medium text-sm capitalize">{selectedBill.returnType === 'exchange' ? 'Exchange (like-for-like, goods restocked, no refund)' : 'Return (refund credited back)'}</p>
+                        </div>
+                      </>
+                    )}
+                    {selectedBill.type === 'sell' && !selectedBill.isEstimate && (selectedBill.refundedAmount || 0) > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Returned / Credited</p>
+                        <p className="font-medium text-sm text-red-600 dark:text-red-400">-₹{(selectedBill.refundedAmount || 0).toFixed(2)} on {selectedBill.items.filter(i => i.lastReturnedOn || i.lastExchangedOn).length} item(s)</p>
+                      </div>
+                    )}
                     {(selectedBill.type === 'sell' || selectedBill.type === 'buy') && !selectedBill.isEstimate && (
                       <div className="space-y-1">
                         <Label htmlFor="paymentStatusView" className="text-xs text-muted-foreground">Payment Status</Label>
@@ -579,11 +609,33 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
                                           </div>
                                         )}
                                         {item.isAdditionalCharge && <span className="text-xs text-primary ml-1">(Additional Charge)</span>}
+                                        {selectedBill.type === 'return' && item.isExchange && !item.isAdditionalCharge && (
+                                          <Badge className="text-xs mt-1 bg-violet-100 text-violet-700 dark:bg-violet-700/20 dark:text-violet-300 border-violet-300 dark:border-violet-600">Exchanged (no refund)</Badge>
+                                        )}
                                         {selectedBill.type === 'return' && item.isDefective && !item.isAdditionalCharge && (
                                           <Badge variant="destructive" className="text-xs mt-1">Defective</Badge>
                                         )}
                                         {selectedBill.type === 'return' && !item.isDefective && !item.isAdditionalCharge && (
                                           <Badge className="text-xs mt-1 bg-green-100 text-green-700 dark:bg-green-700/20 dark:text-green-300 border-green-300 dark:border-green-600 hover:bg-green-200/80 dark:hover:bg-green-700/30">Restocked</Badge>
+                                        )}
+                                        {selectedBill.type === 'sell' && !selectedBill.isEstimate && ((item.returnedQuantity || 0) > 0 || (item.defectiveReturnedQuantity || 0) > 0 || (item.exchangedQuantity || 0) > 0) && !item.isAdditionalCharge && (
+                                          <div className="flex flex-wrap gap-1 mt-1">
+                                            {(item.returnedQuantity || 0) > 0 && (
+                                              <Badge className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-700/20 dark:text-amber-300 border-amber-300 dark:border-amber-600" title={item.lastReturnedOn ? `Returned on ${format(new Date(item.lastReturnedOn), 'dd MMM yyyy')}` : undefined}>
+                                                Returned {item.returnedQuantity} on {item.lastReturnedOn ? format(new Date(item.lastReturnedOn), 'dd MMM') : '—'}
+                                              </Badge>
+                                            )}
+                                            {(item.defectiveReturnedQuantity || 0) > 0 && (
+                                              <Badge variant="destructive" className="text-xs" title={item.lastReturnedOn ? `Defective return on ${format(new Date(item.lastReturnedOn), 'dd MMM yyyy')}` : undefined}>
+                                                Defective {item.defectiveReturnedQuantity}
+                                              </Badge>
+                                            )}
+                                            {(item.exchangedQuantity || 0) > 0 && (
+                                              <Badge className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-700/20 dark:text-violet-300 border-violet-300 dark:border-violet-600" title={item.lastExchangedOn ? `Exchanged on ${format(new Date(item.lastExchangedOn), 'dd MMM yyyy')}` : undefined}>
+                                                Exchanged {item.exchangedQuantity} on {item.lastExchangedOn ? format(new Date(item.lastExchangedOn), 'dd MMM') : '—'}
+                                              </Badge>
+                                            )}
+                                          </div>
                                         )}
                                       </TableCell>
                                       <TableCell className="text-right py-2 align-top">{item.quantity.toFixed(2)}</TableCell>
@@ -657,6 +709,25 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
                       <span>{selectedBill.type === 'sell' && selectedBill.isEstimate ? 'Estimate Total:' : 'Grand Total:'}</span>
                       <span className={getBillTypeIconAndColor(selectedBill.type, selectedBill.items, selectedBill.isEstimate).titleColor}>₹{selectedBill.totalAmount.toFixed(2)}</span>
                     </div>
+                    {selectedBill.type === 'return' && (selectedBill.refundAmount ?? 0) > 0 && (
+                      <div className="flex justify-between mt-1 pt-1 border-t">
+                        <span className="text-muted-foreground">Amount Credited (Refund)</span>
+                        <span className="font-semibold text-red-600 dark:text-red-400">-₹{selectedBill.refundAmount?.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {selectedBill.type === 'sell' && !selectedBill.isEstimate && (selectedBill.refundedAmount || 0) > 0 && (
+                      <>
+                        <Separator className="my-1.5" />
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Returned / Credited</span>
+                          <span className="font-medium text-red-600 dark:text-red-400">-₹{(selectedBill.refundedAmount || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-base font-bold">
+                          <span>Amount Settled (net)</span>
+                          <span className="text-foreground">₹{((selectedBill.totalAmount || 0) - (selectedBill.refundedAmount || 0)).toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -835,7 +906,24 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
                       {bill.customerPhone && <div className="text-xs text-muted-foreground">{bill.customerPhone}</div>}
                     </TableCell>
                     <TableCell className="text-right py-3 px-4 w-[70px]">{bill.items.length}</TableCell>
-                    <TableCell className="text-right font-semibold text-primary py-3 px-4 w-[110px]">₹{bill.totalAmount.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-semibold text-primary py-3 px-4 w-[110px]">
+                      <div className="text-right">
+                        <div>
+                          ₹{(bill.type === 'sell' && !bill.isEstimate && (bill.refundedAmount || 0) > 0
+                            ? (bill.totalAmount || 0) - (bill.refundedAmount || 0)
+                            : bill.totalAmount
+                          ).toFixed(2)}
+                        </div>
+                        {bill.type === 'sell' && !bill.isEstimate && (bill.refundedAmount || 0) > 0 && (
+                          <div className="text-[10px] text-red-500 font-medium">
+                            -₹{(bill.refundedAmount || 0).toFixed(2)} returned
+                          </div>
+                        )}
+                        {bill.type === 'return' && bill.originalBillId && (
+                          <div className="text-[10px] text-muted-foreground font-medium">vs {bill.originalBillId.slice(-6)}</div>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-center py-3 px-4 w-[100px]">
                       {(bill.type === 'sell' || bill.type === 'buy') && bill.paymentStatus && !bill.isEstimate ? (
                         <Badge
@@ -868,6 +956,11 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
                           <DropdownMenuItem onClick={() => handlePrintSelectedBill(bill)}>
                             <Printer className="mr-2 h-4 w-4" /> Print Bill
                           </DropdownMenuItem>
+                          {bill.type === 'sell' && !bill.isEstimate && (
+                            <DropdownMenuItem onClick={() => handleInitiateReturn(bill)}>
+                              <RotateCcw className="mr-2 h-4 w-4" /> Return / Exchange Items
+                            </DropdownMenuItem>
+                          )}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive focus:bg-destructive/10">
@@ -976,8 +1069,19 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
                 <CardFooter className="p-4 bg-muted/30 flex justify-between items-center">
                   <p className="text-lg font-bold">
                     <span className={cn(billDisplayInfo.titleColor === 'text-destructive' ? 'text-destructive' : 'text-primary')}>
-                      ₹{bill.totalAmount.toFixed(2)}
+                      ₹{(bill.type === 'sell' && !bill.isEstimate && (bill.refundedAmount || 0) > 0
+                        ? (bill.totalAmount || 0) - (bill.refundedAmount || 0)
+                        : bill.totalAmount
+                      ).toFixed(2)}
                     </span>
+                    {bill.type === 'sell' && !bill.isEstimate && (bill.refundedAmount || 0) > 0 && (
+                      <span className="block text-[10px] text-red-500 font-medium">
+                        -₹{(bill.refundedAmount || 0).toFixed(2)} returned
+                      </span>
+                    )}
+                    {bill.type === 'return' && bill.originalBillId && (
+                      <span className="block text-[10px] text-muted-foreground font-medium">vs {bill.originalBillId.slice(-6)}</span>
+                    )}
                   </p>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -994,6 +1098,11 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
                       <DropdownMenuItem onClick={() => handlePrintSelectedBill(bill)}>
                         <Printer className="mr-2 h-4 w-4" /> Print Bill
                       </DropdownMenuItem>
+                      {bill.type === 'sell' && !bill.isEstimate && (
+                        <DropdownMenuItem onClick={() => handleInitiateReturn(bill)}>
+                          <RotateCcw className="mr-2 h-4 w-4" /> Return / Exchange Items
+                        </DropdownMenuItem>
+                      )}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive focus:bg-destructive/10">

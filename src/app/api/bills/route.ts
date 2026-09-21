@@ -5,6 +5,7 @@ import type { Bill, Product, ProductSKU, StockLayer, BillItem, Company, User, St
 import { v4 as uuidv4 } from 'uuid';
 import { format, startOfDay } from 'date-fns';
 import { roundMoney, roundQuantity } from '@/lib/units';
+import { buildUpdatedOriginalBill, computeReturnRefundAmount, validateReturnAgainstOriginal } from '@/lib/return-utils';
 
 const routeNamePrefix = "[API_BILLS_COLLECTION /api/bills]";
 
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
     const billedByStaffId = billData?.billedByStaffId;
     const taxType = billData?.taxType;
     const providedDate = billData?.date;
+    const originalBillId = billType === 'return' ? billData?.originalBillId : undefined;
     const skipStockProductIds = new Set(billData?.skipStockProductIds || []);
 
     if (!companyId || !billType || !Array.isArray(itemsData) || itemsData.length === 0) {
@@ -92,7 +94,7 @@ export async function POST(req: NextRequest) {
 
     // These lookups are independent — run them in one parallel batch instead of
     // four sequential network round trips to Supabase.
-    const [company, allBillsTodayCount, storeDetails, productsToUpdateRaw, staffUser] = await Promise.all([
+    const [company, allBillsTodayCount, storeDetails, productsToUpdateRaw, staffUser, originalBill] = await Promise.all([
       db.collection<Company>('companies').findOne({ id: companyId }),
       db.collection<Bill>('bills').countDocuments({
         id: { $gte: datePrefix + '0000', $lt: datePrefix + '9999' }
@@ -104,11 +106,24 @@ export async function POST(req: NextRequest) {
       billedByStaffId
         ? db.collection<User>('users').findOne({ id: billedByStaffId, companyId: companyId })
         : Promise.resolve(null as User | null),
+      originalBillId
+        ? db.collection<Bill>('bills').findOne({ id: originalBillId, companyId: companyId })
+        : Promise.resolve(null as Bill | null),
     ]);
     const productsToUpdate: Product[] = productsToUpdateRaw as Product[];
 
     if (!company) {
       return NextResponse.json({ success: false, message: 'Company not found.' }, { status: 404 });
+    }
+
+    if (billType === 'return' && originalBillId && !originalBill) {
+      return NextResponse.json({ success: false, message: 'The original sales bill for this return was not found.' }, { status: 404 });
+    }
+    if (originalBill) {
+      const validationError = validateReturnAgainstOriginal(originalBill, itemsData as BillItem[]);
+      if (validationError) {
+        return NextResponse.json({ success: false, message: validationError }, { status: 400 });
+      }
     }
 
     let newBillNumber = allBillsTodayCount + 1;
@@ -236,12 +251,23 @@ export async function POST(req: NextRequest) {
       processedBillItems.push({
         id: uuidv4(), productId: product?.id || item.productId, productName: itemProductNameForBill,
         quantity: item.quantity, costPrice: itemCostPrice, sellPrice: itemSellPrice,
-        isDefective: item.isDefective, selectedVariantOptions: item.selectedVariantOptions,
+        isDefective: item.isDefective, isExchange: item.isExchange,
+        selectedVariantOptions: item.selectedVariantOptions,
         sgstAmount: itemSgstAmount, cgstAmount: itemCgstAmount, igstAmount: itemIgstAmount,
         discountValue: item.discountValue, discountType: item.discountType, discountAmount: itemDiscountAmount,
         isAdditionalCharge: item.isAdditionalCharge, sourceChargeDefinitionId: item.sourceChargeDefinitionId,
       });
     }
+
+    // When a return is linked to its original sale bill, compute how much money is
+    // credited back (everything EXCEPT exchanged lines), decide the bill's
+    // returnType, and annotate the original bill so its amount is effectively reduced.
+    const linkedReturnRefund =
+      originalBill && billType === 'return' ? computeReturnRefundAmount(processedBillItems) : 0;
+    const linkedReturnType: Bill['returnType'] =
+      originalBill && billType === 'return'
+        ? (itemsData as BillItem[]).every((i) => i.isExchange === true) ? 'exchange' : 'return'
+        : undefined;
 
     const newBill = {
       id: newBillId, type: billType, date: currentDate.toISOString(), timestamp: currentDate.getTime(),
@@ -254,6 +280,7 @@ export async function POST(req: NextRequest) {
       paymentStatus: billData.paymentStatus, billedByStaffId: staffUser?.id,
       billedByStaffName: staffUser?.name, storeId: storeDetails?.id, storeName: storeDetails?.name,
       companyId: companyId, taxType: taxType,
+      originalBillId: originalBillId, returnType: linkedReturnType, refundAmount: linkedReturnRefund > 0 ? linkedReturnRefund : undefined,
     };
 
     let insertedBill: Bill | null = null;
@@ -278,6 +305,16 @@ export async function POST(req: NextRequest) {
     }
     for (const product of productsToUpdate) {
       await productsCollection.updateOne({ id: product.id }, { $set: { productSKUs: product.productSKUs } });
+    }
+
+    // Annotate the linked original sale bill: its amount is effectively reduced by
+    // the refunded amount and its lines remember how much was returned/exchanged.
+    if (originalBill && billType === 'return') {
+      const updatedOriginal = buildUpdatedOriginalBill(originalBill, insertedBill.id, processedBillItems, currentDate.toISOString(), linkedReturnRefund);
+      await db.collection<Bill>('bills').updateOne(
+        { id: updatedOriginal.id },
+        { $set: { items: updatedOriginal.items, refundedAmount: updatedOriginal.refundedAmount, linkedReturnBillIds: updatedOriginal.linkedReturnBillIds } }
+      );
     }
 
     console.log(`${routeLogName} New bill (ID: ${insertedBill.id}) created successfully for company ${companyId}.`);

@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { format, subDays, startOfDay, endOfDay, isToday, isThisWeek, isThisMonth, isThisYear, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subYears } from 'date-fns';
 import { DEFAULT_CATEGORIES, SUBSCRIPTION_PLANS, SUBSCRIPTION_PLAN_IDS, DEFAULT_COMPANY_NAME, DEFAULT_CURRENCY_CODE, LOW_STOCK_THRESHOLD } from '@/lib/constants';
 import { roundMoney, roundQuantity } from '@/lib/units';
+import { buildUpdatedOriginalBill, computeReturnRefundAmount, validateReturnAgainstOriginal, sameItemLine, getNetAmountRatio } from '@/lib/return-utils';
 import { toast } from './use-toast';
 
 // Re-export types for convenience in other files
@@ -145,6 +146,7 @@ interface InventoryState {
   getReportSummaryByDateRange: (startDate?: Date, endDate?: Date, companyId?: string, storeId?: string) => DateRangeReportSummary;
   getSalesBillsByDateRange: (startDate?: Date, endDate?: Date, companyId?: string) => Bill[];
   getExpenseBillsByDateRange: (startDate?: Date, endDate?: Date, companyId?: string) => Bill[];
+  getReturnBillsByDateRange: (startDate?: Date, endDate?: Date, companyId?: string, storeId?: string) => Bill[];
   getAccountsReceivableSummary: (companyId?: string, storeId?: string) => AccountsReceivableSummary;
   getAccountsPayableSummary: (companyId?: string, storeId?: string) => AccountsPayableSummary;
   getCashFlowSummaryByDateRange: (startDate?: Date, endDate?: Date, companyId?: string, storeId?: string) => CashFlowSummary;
@@ -182,6 +184,32 @@ const LOCAL_COMPANY_ID = 'comp_local_default';
 const LOCAL_STORE_ID = 'store_local_main';
 const LOCAL_ADMIN_ID = 'user_local_admin';
 const isLocalCompany = (companyId?: string | null) => companyId === LOCAL_COMPANY_ID || companyId?.startsWith('comp_local_');
+
+// ---- Return/exchange netting helpers ---------------------------------------
+// A sale bill's effective amount is its gross amount less everything refunded
+// against it (accepted vs estimate only differs by restriction; here we only
+// net real sales). Goods returned (non-defective) re-enter inventory, so the
+// COGS-booked at the original sale is reversed on the return date for linked
+// returns. Defective returns are a loss — they are not restocked, so their
+// cost is NOT reversed.
+const soldRatio = (bill: Bill): number => getNetAmountRatio(bill);
+
+const netSoldQuantity = (item: BillItem): number =>
+  Math.max(0, (item.quantity || 0) - (item.returnedQuantity || 0) - (item.defectiveReturnedQuantity || 0));
+
+const restockedReturnsCOGS = (returnBill: Bill, allBills: Bill[]): number => {
+  if (!returnBill.originalBillId) return 0;
+  const original = allBills.find(b => b.id === returnBill.originalBillId);
+  if (!original) return 0;
+  let cogs = 0;
+  for (const item of returnBill.items) {
+    if (item.isDefective || item.isAdditionalCharge || item.productId.startsWith('SERVICE_ITEM_') || item.productId.startsWith('CHARGE_ITEM_')) continue;
+    const originalItem = original.items.find(i => sameItemLine(i, item));
+    if (!originalItem) continue;
+    cogs += (originalItem.costPrice || 0) * item.quantity;
+  }
+  return roundMoney(cogs);
+};
 
 const createLocalCompany = (profile: UserProfile): Company => ({
   id: LOCAL_COMPANY_ID,
@@ -430,6 +458,7 @@ export const useInventoryStore = create<InventoryState>()(
           const localBillType = (billData.billType || billData.type || 'sell') as BillMode;
           const localStoreId = billData.storeIdForBill || billData.storeId || LOCAL_STORE_ID;
           const skipStockProductIds = new Set(billData.skipStockProductIds || []);
+          const returnSourceBillId = localBillType === 'return' ? billData.originalBillId : undefined;
 
           if (!['sell', 'buy', 'return'].includes(localBillType)) {
             throw new Error(`Invalid local bill type: ${localBillType}`);
@@ -547,9 +576,35 @@ export const useInventoryStore = create<InventoryState>()(
             taxType: billData.taxType,
           };
 
+          // Link the return to its original sale bill (same rules as the API route):
+          // validate against what's still returnable, credit back everything except
+          // exchanged lines, and annotate the original bill (refundedAmount/linkage)
+          // so its amount is effectively reduced.
+          let updatedOriginalBill: Bill | null = null;
+          if (localBillType === 'return' && returnSourceBillId) {
+            const originalBill = get().bills.find(b => b.id === returnSourceBillId && b.companyId === companyId);
+            if (!originalBill) {
+              throw new Error('The original sales bill for this return was not found.');
+            }
+            const validationError = validateReturnAgainstOriginal(originalBill, processedItems);
+            if (validationError) {
+              throw new Error(validationError);
+            }
+            const refund = computeReturnRefundAmount(processedItems);
+            const returnType: Bill['returnType'] = processedItems.every(i => i.isExchange) ? 'exchange' : 'return';
+            updatedOriginalBill = buildUpdatedOriginalBill(originalBill, newBillId, processedItems, currentDate.toISOString(), refund);
+            newBill.originalBillId = returnSourceBillId;
+            newBill.returnType = returnType;
+            if (returnType === 'return' && refund > 0) newBill.refundAmount = refund;
+          }
+
           set((state) => ({
             products: productsToUpdate,
-            bills: [newBill, ...state.bills.filter(bill => bill.companyId !== companyId || bill.id !== newBill.id)].sort((a, b) => b.timestamp - a.timestamp),
+            bills: [
+              ...(updatedOriginalBill ? [updatedOriginalBill] : []),
+              newBill,
+              ...state.bills.filter(bill => bill.companyId !== companyId || (bill.id !== newBill.id && bill.id !== returnSourceBillId)),
+            ].sort((a, b) => b.timestamp - a.timestamp),
           }));
           return newBill;
         }
@@ -562,7 +617,32 @@ export const useInventoryStore = create<InventoryState>()(
           const result = await response.json();
           if (!result.success) throw new Error(result.message);
           const newBill = result.data as Bill;
-          set((state) => ({ bills: [newBill, ...state.bills].sort((a, b) => b.timestamp - a.timestamp) }));
+
+          // Mirror what the server persisted back into the client store so the
+          // original sale bill reflects the refund/return annotations immediately.
+          set((state) => {
+            let updatedOriginalBill: Bill | null = null;
+            if (billData.originalBillId) {
+              const originalBill = state.bills.find(b => b.id === (billData.originalBillId as string));
+              if (originalBill) {
+                const returnRefund = newBill.refundAmount ?? 0;
+                updatedOriginalBill = buildUpdatedOriginalBill(
+                  originalBill,
+                  newBill.id,
+                  itemsData as BillItem[],
+                  endOfDay(new Date(billData.date || new Date())).toISOString(),
+                  returnRefund
+                );
+              }
+            }
+            return {
+              bills: [
+                ...(updatedOriginalBill ? [updatedOriginalBill] : []),
+                newBill,
+                ...state.bills.filter(bill => bill.id !== newBill.id && (!billData.originalBillId || bill.id !== billData.originalBillId)),
+              ].sort((a, b) => b.timestamp - a.timestamp),
+            };
+          });
           set({ products: [] });
           get().fetchProducts(billData.companyId);
           return newBill;
@@ -1338,9 +1418,12 @@ export const useInventoryStore = create<InventoryState>()(
             if (!dailyDataMap[dateKey]) dailyDataMap[dateKey] = { sales: 0, expenses: 0 };
 
             if (bill.type === 'sell' && !bill.isEstimate) {
-              dailyDataMap[dateKey].sales += bill.totalAmount;
+              dailyDataMap[dateKey].sales += (bill.totalAmount || 0) - (bill.refundedAmount || 0);
             } else if (bill.type === 'buy') {
               dailyDataMap[dateKey].expenses += bill.totalAmount;
+            } else if (bill.type === 'return' && (bill.refundAmount || 0) > 0) {
+              // Refunds paid back to customers are cash/expense outflows.
+              dailyDataMap[dateKey].expenses += bill.refundAmount || 0;
             }
           }
         });
@@ -1374,8 +1457,9 @@ export const useInventoryStore = create<InventoryState>()(
               if (!productRevenue[productNameForItem]) {
                 productRevenue[productNameForItem] = { name: productNameForItem, revenue: 0, quantity: 0 };
               }
-              productRevenue[productNameForItem].revenue += (item.sellPrice ?? 0) * item.quantity;
-              productRevenue[productNameForItem].quantity += item.quantity;
+              const netQty = netSoldQuantity(item);
+              productRevenue[productNameForItem].revenue += (item.sellPrice ?? 0) * netQty;
+              productRevenue[productNameForItem].quantity += netQty;
             });
           }
         });
@@ -1469,14 +1553,17 @@ export const useInventoryStore = create<InventoryState>()(
 
         filteredBills.forEach(bill => {
           if (bill.type === 'sell' && !bill.isEstimate) {
-            totalRevenue += bill.subTotal ?? bill.totalAmount;
+            totalRevenue += roundMoney((bill.subTotal ?? bill.totalAmount) * soldRatio(bill));
             bill.items.forEach(item => {
               if (item.productId.startsWith('SERVICE_ITEM_') || item.isAdditionalCharge) return;
               const costForItem = (item.costPrice || 0);
-              totalCOGS += costForItem * item.quantity;
+              totalCOGS += costForItem * netSoldQuantity(item);
             });
           } else if (bill.type === 'buy') {
             totalExpenses += bill.totalAmount;
+          } else if (bill.type === 'return') {
+            // Restocked returned goods reverse the COGS booked at their original sale.
+            totalCOGS -= restockedReturnsCOGS(bill, billsToConsider);
           }
         });
         const grossProfit = totalRevenue - totalCOGS;
@@ -1501,11 +1588,12 @@ export const useInventoryStore = create<InventoryState>()(
         filteredBills.forEach(bill => {
           transactionsToday++;
           if (bill.type === 'sell' && !bill.isEstimate) {
-            totalRevenue += bill.subTotal ?? 0;
-            bill.items.forEach(item => { if (!item.isAdditionalCharge && !item.productId.startsWith('SERVICE_ITEM_')) totalCOGS += (item.costPrice || 0) * item.quantity; });
+            totalRevenue += roundMoney((bill.subTotal ?? 0) * soldRatio(bill));
+            bill.items.forEach(item => { if (!item.isAdditionalCharge && !item.productId.startsWith('SERVICE_ITEM_')) totalCOGS += (item.costPrice || 0) * netSoldQuantity(item); });
           } else if (bill.type === 'buy') {
             totalExpenses += bill.totalAmount;
           } else if (bill.type === 'return') {
+            totalCOGS -= restockedReturnsCOGS(bill, bills);
             bill.items.forEach(item => { if (item.isDefective) defectivesToday += item.quantity; });
           }
         });
@@ -1539,13 +1627,14 @@ export const useInventoryStore = create<InventoryState>()(
                 if (!productFinancials[skuIdentifier]) {
                   productFinancials[skuIdentifier] = { name: skuIdentifier, revenue: 0, cogs: 0, profit: 0, quantity: 0 };
                 }
-                const itemRevenue = (item.sellPrice || 0) * item.quantity;
-                const itemCogs = (item.costPrice || 0) * item.quantity;
+                const netQty = netSoldQuantity(item);
+                const itemRevenue = (item.sellPrice || 0) * netQty;
+                const itemCogs = (item.costPrice || 0) * netQty;
 
                 productFinancials[skuIdentifier].revenue += itemRevenue;
                 productFinancials[skuIdentifier].cogs += itemCogs;
                 productFinancials[skuIdentifier].profit += (itemRevenue - itemCogs);
-                productFinancials[skuIdentifier].quantity += item.quantity;
+                productFinancials[skuIdentifier].quantity += netQty;
               }
             });
           }
@@ -1562,8 +1651,9 @@ export const useInventoryStore = create<InventoryState>()(
             if (item.productId !== productId) return;
             if (bill.type === 'buy') totalPurchased += item.quantity;
             else if (bill.type === 'sell' && !bill.isEstimate) {
-              totalSold += item.quantity;
-              totalRevenue += item.sellPrice * item.quantity;
+              const netQty = netSoldQuantity(item);
+              totalSold += netQty;
+              totalRevenue += item.sellPrice * netQty;
               totalCostOfGoodsSold += (item.costPrice || 0) * item.quantity;
             } else if (bill.type === 'return') totalReturned += item.quantity;
           });
@@ -1592,7 +1682,7 @@ export const useInventoryStore = create<InventoryState>()(
             bill.items.forEach(item => {
               if (item.productId === p.id) {
                 if (bill.type === 'buy') totalPurchased += item.quantity;
-                else if (bill.type === 'sell' && !bill.isEstimate) totalSold += item.quantity;
+                else if (bill.type === 'sell' && !bill.isEstimate) totalSold += netSoldQuantity(item);
                 else if (bill.type === 'return') {
                   if (item.isDefective) totalDefectiveReturns += item.quantity;
                   else totalRestockedReturns += item.quantity;
@@ -1631,18 +1721,19 @@ export const useInventoryStore = create<InventoryState>()(
         let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0, totalItemsSold = 0, totalSGST = 0, totalCGST = 0, totalAdditionalCharges = 0;
         bills.forEach(bill => {
           if (bill.type === 'sell' && !bill.isEstimate) {
-            totalRevenue += bill.subTotal ?? 0;
-            totalSGST += bill.totalSGST ?? 0;
-            totalCGST += bill.totalCGST ?? 0;
+            totalRevenue += roundMoney((bill.subTotal ?? 0) * soldRatio(bill));
+            totalSGST += roundMoney((bill.totalSGST ?? 0) * soldRatio(bill));
+            totalCGST += roundMoney((bill.totalCGST ?? 0) * soldRatio(bill));
             bill.items.forEach(item => {
               if (!item.isAdditionalCharge) {
-                totalCOGS += (item.costPrice || 0) * item.quantity;
-                totalItemsSold += item.quantity;
+                totalCOGS += (item.costPrice || 0) * netSoldQuantity(item);
+                totalItemsSold += netSoldQuantity(item);
               } else {
                 totalAdditionalCharges += (item.sellPrice || 0) * item.quantity;
               }
             });
           } else if (bill.type === 'buy') totalExpenses += bill.totalAmount;
+          else if (bill.type === 'return') totalCOGS -= restockedReturnsCOGS(bill, bills);
         });
         return {
           totalRevenue, totalCOGS, grossProfit: totalRevenue - totalCOGS, totalExpenses,
@@ -1654,12 +1745,15 @@ export const useInventoryStore = create<InventoryState>()(
       getSalesBillsByDateRange: (startDate, endDate, companyId) => {
         return get().bills.filter(b => b.type === 'sell' && !b.isEstimate && (!companyId || b.companyId === companyId) && (!startDate || new Date(b.date) >= startDate) && (!endDate || new Date(b.date) <= endDate));
       },
+      getReturnBillsByDateRange: (startDate, endDate, companyId, storeId) => {
+        return get().bills.filter(b => b.type === 'return' && (!companyId || b.companyId === companyId) && (!storeId || storeId === 'all' || b.storeId === storeId) && (!startDate || new Date(b.date) >= startDate) && (!endDate || new Date(b.date) <= endDate));
+      },
       getExpenseBillsByDateRange: (startDate, endDate, companyId) => {
         return get().bills.filter(b => b.type === 'buy' && (!companyId || b.companyId === companyId) && (!startDate || new Date(b.date) >= startDate) && (!endDate || new Date(b.date) <= endDate));
       },
       getAccountsReceivableSummary: (companyId, storeId) => {
         const unpaidInvoices = get().bills.filter(b => b.type === 'sell' && !b.isEstimate && b.paymentStatus === 'unpaid' && (!companyId || b.companyId === companyId) && (!storeId || storeId === 'all' || b.storeId === storeId));
-        return { totalReceivable: unpaidInvoices.reduce((sum, b) => sum + b.totalAmount, 0), unpaidInvoices };
+        return { totalReceivable: unpaidInvoices.reduce((sum, b) => sum + ((b.totalAmount || 0) - (b.refundedAmount || 0)), 0), unpaidInvoices };
       },
       getAccountsPayableSummary: (companyId, storeId) => {
         const unpaidBills = get().bills.filter(b => b.type === 'buy' && b.paymentStatus === 'unpaid' && (!companyId || b.companyId === companyId) && (!storeId || storeId === 'all' || b.storeId === storeId));
@@ -1668,7 +1762,8 @@ export const useInventoryStore = create<InventoryState>()(
       getCashFlowSummaryByDateRange: (startDate, endDate, companyId, storeId) => {
         const bills = get().bills.filter(b => (!companyId || b.companyId === companyId) && (!storeId || storeId === 'all' || b.storeId === storeId) && (!startDate || new Date(b.date) >= startDate) && (!endDate || new Date(b.date) <= endDate));
         const cashInflows = bills.filter(b => b.type === 'sell' && !b.isEstimate && b.paymentStatus === 'paid').reduce((sum, b) => sum + b.totalAmount, 0);
-        const cashOutflows = bills.filter(b => b.type === 'buy' && b.paymentStatus === 'paid').reduce((sum, b) => sum + b.totalAmount, 0);
+        const cashOutflows = bills.filter(b => b.type === 'buy' && b.paymentStatus === 'paid').reduce((sum, b) => sum + b.totalAmount, 0)
+          + bills.filter(b => b.type === 'return').reduce((sum, b) => sum + (b.refundAmount || 0), 0);
         return { cashInflows, cashOutflows, netCashFlow: cashInflows - cashOutflows };
       },
       getDailyLedger: (date, companyId, storeId) => {

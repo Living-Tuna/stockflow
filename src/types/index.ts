@@ -66,6 +66,17 @@ export interface BillItem {
   costPrice: number;
   sellPrice: number;
   isDefective?: boolean;
+  // Marked on return-bill lines: the item is being exchanged (like-for-like swap,
+  // goods go back to stock but no money is credited back to the customer).
+  isExchange?: boolean;
+  // Tracked on ORIGINAL sale-bill lines: how much of this line has been returned
+  // or exchanged, and when. Used to limit future returns and to show the
+  // "returned/exchanged on" indication against the original invoice.
+  returnedQuantity?: number;
+  defectiveReturnedQuantity?: number;
+  exchangedQuantity?: number;
+  lastReturnedOn?: string;
+  lastExchangedOn?: string;
   selectedVariantOptions?: Record<string, string>;
   sgstAmount?: number;
   cgstAmount?: number;
@@ -81,6 +92,15 @@ export interface Bill {
   id: string;
   invoiceNumber?: string; // Human readable invoice number (e.g., FY24-25/001)
   type: BillMode;
+  // Return/exchange linkage: a `return` bill points at the sale bill it settles
+  // (`originalBillId`), and the original sale bill is annotated with the running
+  // `refundedAmount` (its amount is effectively reduced by this) plus the list
+  // of return bills raised against it (`linkedReturnBillIds`).
+  originalBillId?: string;
+  returnType?: 'return' | 'exchange';
+  refundAmount?: number;
+  refundedAmount?: number;
+  linkedReturnBillIds?: string[];
   date: string;
   timestamp: number;
   vendorOrCustomerName?: string;
@@ -272,6 +292,8 @@ export interface PendingBillPayload {
   billingAddress?: string; // Added for GST compliance
   shippingAddress?: string; // Added for GST compliance
   skipStockProductIds?: string[]; // Product IDs whose stock layers should not be created (used when product was just created)
+  originalBillId?: string; // Sale bill this return/exchange settles against
+  returnType?: 'return' | 'exchange'; // Exchange = no money credited back
 }
 
 export interface Customer {

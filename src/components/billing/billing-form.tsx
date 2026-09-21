@@ -19,10 +19,14 @@ import { EmployeePasskeyDialog } from './employee-passkey-dialog';
 import { NewProductDialog } from './new-product-dialog';
 import { UnifiedScannerModal } from '@/components/common/UnifiedScannerModal';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { generatePrintContent, triggerPrint } from '@/lib/print-utils';
 import { Printer } from 'lucide-react';
 import type { Product, BillItem, BillMode, ProductSKU, Store, Staff, Bill, PendingBillPayload } from '@/types';
 import { SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
+import { format } from 'date-fns';
+import { getReturnableQuantity, computeReturnRefundAmount } from '@/lib/return-utils';
 
 interface BillingFormProps {
   storeId?: string;
@@ -53,7 +57,8 @@ export function BillingForm({
     findOrCreateProductSKU, getSkuDetails,
     getActiveSubscriptionPlan, userProfile, products: allProductsStoreHook,
     updateProduct: updateProductInStore,
-    draftBill, setDraftBill, clearDraftBill
+    draftBill, setDraftBill, clearDraftBill,
+    bills: allBills
   } = useInventoryStore();
 
   const companyId = companyIdFromProp || localStorage.getItem('companyId') || "comp_default_001";
@@ -89,6 +94,8 @@ export function BillingForm({
   const [selectedVariantOptions, setSelectedVariantOptions] = useState<Record<string, string>>({});
 
   const [returnItemIsDefective, setReturnItemIsDefective] = useState(false);
+  // Optional source sale bill this return/exchange settles against.
+  const [returnSourceBillId, setReturnSourceBillId] = useState<string>('');
   const [productNotFoundHint, setProductNotFoundHint] = useState('');
   const [isLoadingProductSearch, setIsLoadingProductSearch] = useState(false);
 
@@ -161,6 +168,44 @@ export function BillingForm({
   const finalStoreIdForSkuDetails = useMemo(() => {
     return isAdminContext ? selectedStoreIdForAdmin : storeIdFromProp;
   }, [isAdminContext, selectedStoreIdForAdmin, storeIdFromProp]);
+
+  // Sale bills the current return/exchange can be settled against: only real,
+  // company-matched sales for this store that still have returnable quantity.
+  const returnableSaleBills = useMemo(() => {
+    if (mode !== 'return') return [];
+    return allBills.filter(b =>
+      b.type === 'sell' && !b.isEstimate && b.companyId === companyId &&
+      (!finalStoreIdForSkuDetails || finalStoreIdForSkuDetails === 'all' || b.storeId === finalStoreIdForSkuDetails) &&
+      b.items.some(i => (!i.productId.startsWith('SERVICE_ITEM_') && !i.productId.startsWith('CHARGE_ITEM_')) && getReturnableQuantity(i) > 0)
+    );
+  }, [mode, allBills, companyId, finalStoreIdForSkuDetails]);
+
+  const returnSourceBill = useMemo(
+    () => returnSourceBillId ? allBills.find(b => b.id === returnSourceBillId) || null : null,
+    [returnSourceBillId, allBills]
+  );
+
+  // How much of an item line is still returnable against the selected source bill.
+  const getReturnableLimitFor = useCallback((item: BillItem): number => {
+    if (mode !== 'return' || item.isAdditionalCharge || item.productId.startsWith('SERVICE_ITEM_')) return 0;
+    if (!returnSourceBill) return Infinity;
+    const originalItem = returnSourceBill.items.find(i => i.productId === item.productId &&
+      JSON.stringify(i.selectedVariantOptions || {}) === JSON.stringify(item.selectedVariantOptions || {}));
+    return originalItem ? getReturnableQuantity(originalItem) : 0;
+  }, [mode, returnSourceBill]);
+
+  const returnRefundPreview = useMemo(() => {
+    if (mode !== 'return' || currentBillItems.length === 0) return 0;
+    return computeReturnRefundAmount(currentBillItems);
+  }, [mode, currentBillItems]);
+
+  // Pre-select the original sale bill when arriving via ?mode=return&returnBillId=...
+  useEffect(() => {
+    if (mode === 'return') {
+      const billIdFromQuery = searchParamsHook.get('returnBillId');
+      if (billIdFromQuery) setReturnSourceBillId(billIdFromQuery);
+    }
+  }, [mode, searchParamsHook]);
 
   // Totals Calculation
   const billTotals = useMemo(() => {
@@ -270,6 +315,26 @@ export function BillingForm({
       }
     }
 
+    // Return/exchange mode: the item must exist on the selected sale bill and the
+    // quantity must not exceed what is still returnable there.
+    if (mode === 'return') {
+      if (!returnSourceBill) {
+        toast({ variant: "destructive", title: "Select Sale Bill", description: "Pick the original sale bill you are returning against." });
+        return;
+      }
+      const originalItem = returnSourceBill.items.find(i => i.productId === product.id &&
+        JSON.stringify(i.selectedVariantOptions || {}) === JSON.stringify(selectedOpts));
+      if (!originalItem) {
+        toast({ variant: "destructive", title: "Not on Bill", description: `"${product.name}" is not on the selected sale bill (${returnSourceBill.invoiceNumber || returnSourceBill.id}).` });
+        return;
+      }
+      const remaining = getReturnableQuantity(originalItem);
+      if (currentQ > remaining) {
+        toast({ variant: "destructive", title: "Over Return", description: `Only ${remaining} of "${product.name}" left to return/exchange (already handled ${(originalItem.quantity || 0) - remaining}).` });
+        return;
+      }
+    }
+
     let itemCostPrice = parseFloat(costPrice.toString()) || 0;
     let itemSellPrice = parseFloat(sellPrice.toString()) || currentSkuSellPrice || 0;
 
@@ -281,6 +346,7 @@ export function BillingForm({
       costPrice: itemCostPrice,
       sellPrice: itemSellPrice,
       isDefective: mode === 'return' ? returnItemIsDefective : undefined,
+      isExchange: mode === 'return' ? false : undefined,
       selectedVariantOptions: selectedOpts,
       isAdditionalCharge: false
     };
@@ -315,6 +381,7 @@ export function BillingForm({
       date: billDate?.toISOString(),
       storeIdForBill: isAdminContext ? selectedStoreIdForAdmin : storeIdFromProp,
       paymentStatus: isPaid ? 'paid' : 'unpaid',
+      originalBillId: mode === 'return' ? (returnSourceBillId || undefined) : undefined,
       skipStockProductIds: newlyCreatedProductIdsRef.current.size > 0
         ? Array.from(newlyCreatedProductIdsRef.current)
         : undefined,
@@ -373,6 +440,7 @@ export function BillingForm({
     setIsDisplayingLayerStock(false);
     setSelectedVariantOptions({});
     setReturnItemIsDefective(false);
+    setReturnSourceBillId('');
     setProductNotFoundHint('');
     newlyCreatedProductIdsRef.current.clear();
   };
@@ -560,6 +628,59 @@ export function BillingForm({
       />
 
       <div className="flex flex-col border shadow-sm rounded-lg bg-card p-4">
+        {mode === 'return' && (
+          <div className="mb-3 space-y-2 border rounded-md p-3 bg-muted/20">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="returnSourceBill" className="text-sm font-medium">
+                  Return / Exchange Against (Original Sale Bill)
+                </Label>
+                <Select value={returnSourceBillId} onValueChange={setReturnSourceBillId}>
+                  <SelectTrigger id="returnSourceBill">
+                    <SelectValue placeholder="Select the original sale bill..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {returnableSaleBills.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">No sale bills available to return against.</div>
+                    )}
+                    {returnableSaleBills.map(bill => (
+                      <SelectItem key={bill.id} value={bill.id}>
+                        #{bill.invoiceNumber || bill.id} · {bill.vendorOrCustomerName || 'Walk-in Customer'} · {format(new Date(bill.date), 'dd MMM yyyy')} · ₹{bill.totalAmount.toFixed(2)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {returnSourceBill && (
+                <div className="space-y-1.5 text-sm">
+                  {returnSourceBill.items.some(i => getReturnableQuantity(i) > 0) ? (
+                    <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                      {returnSourceBill.items.filter(i => getReturnableQuantity(i) > 0).map(i => (
+                        <span key={i.id}>{i.productName} — {getReturnableQuantity(i)} left</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-amber-600">All items on this bill are already fully returned/exchanged.</div>
+                  )}
+                  <div className="text-sm">
+                    {currentBillItems.length > 0 && (
+                      <>
+                        <span className="text-muted-foreground">Refund credited back to customer: </span>
+                        <span className="font-semibold text-primary">₹{returnRefundPreview.toFixed(2)}</span>
+                        {currentBillItems.some(i => i.isExchange) && (
+                          <span className="text-muted-foreground">
+                            {' '}(exchanged lines — no money back)
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <BillingProductSelector
           mode={mode}
           productNameQuery={productNameQuery} setProductNameQuery={setProductNameQuery}
@@ -593,9 +714,12 @@ export function BillingForm({
           isEstimateMode={isEstimateMode}
           taxType={taxType}
           updateQuantity={(id, qty) => {
-            setCurrentBillItems(prev => prev.map(item =>
-              item.id === id ? recalculateItemTaxes({ ...item, quantity: qty }) : item
-            ));
+            setCurrentBillItems(prev => prev.map(item => {
+              if (item.id !== id) return item;
+              const limit = getReturnableLimitFor(item);
+              const safeQty = Number.isFinite(limit) ? Math.max(0.01, Math.min(qty || 0, limit)) : Math.max(0.01, qty || 0);
+              return recalculateItemTaxes({ ...item, quantity: safeQty });
+            }));
           }}
           updatePrice={(id, price, type) => {
             setCurrentBillItems(prev => prev.map(item => {
@@ -614,6 +738,13 @@ export function BillingForm({
                 discountValue: val || 0,
                 discountType: type,
               });
+            }));
+          }}
+          updateItemFlag={(id, flag) => {
+            setCurrentBillItems(prev => prev.map(item => {
+              if (item.id !== id) return item;
+              if (flag === 'isExchange') return recalculateItemTaxes({ ...item, isExchange: !item.isExchange });
+              return item;
             }));
           }}
           removeItem={(id) => setCurrentBillItems(prev => prev.filter(i => i.id !== id))}

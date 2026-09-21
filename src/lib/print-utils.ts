@@ -27,6 +27,7 @@ const getBillTypeNameForPrint = (bill: Bill): string => {
   if (bill.type === 'buy') return 'Purchase Bill';
   if (bill.type === 'sell' && bill.isEstimate) return 'Estimate';
   if (bill.type === 'sell') return 'Tax Invoice';
+  if (bill.type === 'return' && bill.returnType === 'exchange') return 'Exchange';
   if (bill.type === 'return' && bill.items.some(item => item.isDefective)) return 'Return (Defective)';
   if (bill.type === 'return') return 'Return';
   return 'Bill';
@@ -125,6 +126,10 @@ export const generateBillPrintContent = (
     content += `<p><strong>Status:</strong> <span class="badge ${badgeClass}">${status}</span></p>`;
   }
   if (billToPrint.billedByStaffName) content += `<p><strong>Issued By:</strong> ${billToPrint.billedByStaffName}</p>`;
+  if (billToPrint.type === 'return') {
+    content += `<p><strong>Against Bill:</strong> ${billToPrint.originalBillId || '-'}</p>`;
+    if (billToPrint.returnType === 'exchange') content += `<p><strong>Type:</strong> Exchange (like-for-like, no refund)</p>`;
+  }
   content += '</div>';
 
   content += '</div>'; // End info-grid
@@ -212,6 +217,13 @@ export const generateBillPrintContent = (
   }
 
   content += `<tr><td colspan="2"><div class="final-total text-right">Grand Total: ${currencySymbol}${billToPrint.totalAmount.toFixed(2)}</div></td></tr>`;
+  if (billToPrint.type === 'return' && (billToPrint.refundAmount ?? 0) > 0) {
+    content += `<tr><td colspan="2" class="text-right" style="color: #dc2626; font-weight: 600;">Amount Credited (Refund): -${currencySymbol}${billToPrint.refundAmount?.toFixed(2)}</td></tr>`;
+  }
+  if (billToPrint.type === 'sell' && !billToPrint.isEstimate && (billToPrint.refundedAmount || 0) > 0) {
+    content += `<tr><td colspan="2" class="text-right" style="color: #dc2626; font-weight: 600;">Less: Returned / Credited: -${currencySymbol}${(billToPrint.refundedAmount || 0).toFixed(2)}</td></tr>`;
+    content += `<tr><td colspan="2" class="text-right" style="font-weight: 700;">Net Amount Settled: ${currencySymbol}${((billToPrint.totalAmount || 0) - (billToPrint.refundedAmount || 0)).toFixed(2)}</td></tr>`;
+  }
   content += '</table>';
   content += '</div>';
 
@@ -275,6 +287,7 @@ const generateBillPrintContentThermal = (
   const billTitle = billToPrint.type === 'buy' ? 'PURCHASE BILL' :
     billToPrint.type === 'sell' && billToPrint.isEstimate ? 'ESTIMATE' :
     billToPrint.type === 'sell' ? 'SALES BILL' :
+    billToPrint.type === 'return' && billToPrint.returnType === 'exchange' ? 'EXCHANGE' :
     billToPrint.type === 'return' ? 'RETURN' : 'BILL';
   r += `<div class="c b">${billTitle}</div>`;
 
@@ -283,6 +296,9 @@ const generateBillPrintContentThermal = (
   r += `<span>${billToPrint.invoiceNumber || billToPrint.id.slice(-8).toUpperCase()}</span>`;
   r += `<span>${format(new Date(billToPrint.date), 'dd/MM/yy pp')}</span>`;
   r += `</div>`;
+  if (billToPrint.type === 'return' && billToPrint.originalBillId) {
+    r += `<div style="font-size: 9px; margin-top: 1mm;">AGAINST: ${billToPrint.originalBillId}</div>`;
+  }
   if (billToPrint.vendorOrCustomerName) {
     r += `<div style="font-size: 9px; margin-top: 1mm;"><span class="b">${billToPrint.vendorOrCustomerName}</span></div>`;
   }
@@ -333,6 +349,13 @@ const generateBillPrintContentThermal = (
     }
   }
   r += `<div class="total-line grand-total"><span>TOTAL</span><span>${currencySymbol}${billToPrint.totalAmount.toFixed(2)}</span></div>`;
+  if (billToPrint.type === 'return' && (billToPrint.refundAmount ?? 0) > 0) {
+    r += `<div class="item-line" style="color:#dc2626; font-weight:bold;"><span>REFUND</span><span>-${currencySymbol}${billToPrint.refundAmount?.toFixed(2)}</span></div>`;
+  }
+  if (billToPrint.type === 'sell' && !billToPrint.isEstimate && (billToPrint.refundedAmount || 0) > 0) {
+    r += `<div class="item-line" style="color:#dc2626;"><span>RETURNED</span><span>-${currencySymbol}${(billToPrint.refundedAmount || 0).toFixed(2)}</span></div>`;
+    r += `<div class="total-line grand-total"><span>NET</span><span>${currencySymbol}${((billToPrint.totalAmount || 0) - (billToPrint.refundedAmount || 0)).toFixed(2)}</span></div>`;
+  }
 
   // Footer
   r += `<hr>`;

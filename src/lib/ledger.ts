@@ -38,9 +38,9 @@ function isCashInflow(b: Bill): boolean {
   return b.type === 'sell' && !b.isEstimate && b.paymentStatus === 'paid';
 }
 
-// Cash outflow: paid purchases
+// Cash outflow: paid purchases + refunds paid back out on return bills
 function isCashOutflow(b: Bill): boolean {
-  return b.type === 'buy' && b.paymentStatus === 'paid';
+  return (b.type === 'buy' && b.paymentStatus === 'paid') || (b.type === 'return' && (b.refundAmount || 0) > 0);
 }
 
 function bump(map: Map<string, number>, key: string, amount: number) {
@@ -90,7 +90,9 @@ export function getDailyLedgers(
       bump(daySales, key, b.totalAmount);
       markEarliest(key);
     } else if (isCashOutflow(b)) {
-      bump(dayPurchases, key, b.totalAmount);
+      // For a return bill only the actual refund goes out; purchases outflow their total.
+      const amount = b.type === 'return' ? (b.refundAmount || 0) : b.totalAmount;
+      bump(dayPurchases, key, amount);
       markEarliest(key);
     }
   }

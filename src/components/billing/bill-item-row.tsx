@@ -4,7 +4,7 @@
 import type { BillItem, BillMode } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BillItemRowProps {
@@ -15,6 +15,7 @@ interface BillItemRowProps {
   onPriceChange?: (itemId: string, newPrice: number, priceType: 'cost' | 'sell') => void;
   onRemoveItem: (itemId: string) => void;
   onDiscountChange?: (itemId: string, value: number, type: 'amount' | 'percentage') => void;
+  onToggleExchange?: (itemId: string) => void;
   taxType?: 'intra-state' | 'inter-state';
   inputRefs?: {
     quantity: React.RefObject<HTMLInputElement>;
@@ -33,6 +34,7 @@ export function BillItemRow({
   onPriceChange,
   onDiscountChange,
   onRemoveItem,
+  onToggleExchange,
   inputRefs,
   onEnterPress,
   taxType = 'intra-state'
@@ -75,6 +77,7 @@ export function BillItemRow({
   const showTaxColumns = mode === 'sell' && !isEstimateMode && !item.isAdditionalCharge && !item.productId.startsWith('SERVICE_ITEM_');
   const isChargeOrService = item.isAdditionalCharge || item.productId.startsWith('SERVICE_ITEM_');
   const isInterState = taxType === 'inter-state';
+  const isReturnMode = mode === 'return';
 
   const gridTemplate = mode === 'buy'
     ? "grid-cols-[1fr_80px_80px_80px_80px_40px]"
@@ -83,7 +86,9 @@ export function BillItemRow({
         ? "grid-cols-[1fr_70px_80px_100px_60px_80px_40px]" // IGST layout
         : "grid-cols-[1fr_70px_80px_100px_50px_50px_80px_40px]" // SGST+CGST layout
       )
-      : "grid-cols-[1fr_80px_100px_100px_40px]");
+      : isReturnMode
+        ? "grid-cols-[1fr_70px_70px_90px_46px_40px]" // Return layout (Product, Qty, Price, Total, Exchange, Del)
+        : "grid-cols-[1fr_80px_100px_100px_40px]");
 
   return (
     <div className={cn(
@@ -100,6 +105,8 @@ export function BillItemRow({
           </div>
         )}
         {item.isAdditionalCharge && <span className="text-xs text-primary ml-1">(Additional Charge)</span>}
+        {isReturnMode && item.isExchange && <span className="text-xs text-violet-600 font-medium ml-1">(Exchange — no refund)</span>}
+        {isReturnMode && !item.isExchange && item.isDefective && <span className="text-xs text-destructive font-medium ml-1">(Defective)</span>}
       </div>
 
       <Input
@@ -203,6 +210,19 @@ export function BillItemRow({
           <span className="text-sm font-semibold text-right flex items-center justify-end h-8 px-2 truncate">
             ₹{itemTotalWithTax.toFixed(2)}
           </span>
+
+          {isReturnMode && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onToggleExchange?.(item.id)}
+              className={cn("h-8 w-8", item.isExchange && "bg-violet-100 text-violet-700")}
+              title={item.isExchange ? "Exchange: goods return to stock, no refund" : "Mark as exchange instead of refund"}
+              tabIndex={-1}
+            >
+              <Repeat className="h-4 w-4" />
+            </Button>
+          )}
         </>
       )}
 
@@ -216,6 +236,7 @@ export function BillItemRow({
 export function BillItemHeader({ mode, isEstimateMode, taxType = 'intra-state' }: { mode: BillMode, isEstimateMode?: boolean, taxType?: 'intra-state' | 'inter-state' }) {
   const showTaxColumns = mode === 'sell' && !isEstimateMode;
   const isInterState = taxType === 'inter-state';
+  const isReturnMode = mode === 'return';
 
   const gridTemplate = mode === 'buy'
     ? "grid-cols-[1fr_80px_80px_80px_80px_40px]"
@@ -224,7 +245,9 @@ export function BillItemHeader({ mode, isEstimateMode, taxType = 'intra-state' }
         ? "grid-cols-[1fr_70px_80px_100px_60px_80px_40px]"
         : "grid-cols-[1fr_70px_80px_100px_50px_50px_80px_40px]"
       )
-      : "grid-cols-[1fr_80px_100px_100px_40px]");
+      : isReturnMode
+        ? "grid-cols-[1fr_70px_70px_90px_46px_40px]"
+        : "grid-cols-[1fr_80px_100px_100px_40px]");
 
   return (
     <div className={cn(
@@ -256,6 +279,7 @@ export function BillItemHeader({ mode, isEstimateMode, taxType = 'intra-state' }
             </>
           )}
           <span className="text-xs font-semibold text-muted-foreground text-right">Total</span>
+          {isReturnMode && <span className="text-xs font-semibold text-muted-foreground text-center">Exchange</span>}
         </>
       )}
       <span className="text-xs font-semibold text-muted-foreground"></span>

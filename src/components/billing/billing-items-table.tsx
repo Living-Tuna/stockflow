@@ -14,13 +14,14 @@ interface BillingItemsTableProps {
     updateQuantity: (id: string, qty: number) => void;
     updatePrice: (id: string, price: number, type: 'cost' | 'sell') => void;
     updateDiscount: (id: string, val: number, type: 'amount' | 'percentage') => void;
+    updateItemFlag?: (id: string, flag: 'isExchange') => void;
     removeItem: (id: string) => void;
     onEnterPress: () => void;
 }
 
 export const BillingItemsTable: React.FC<BillingItemsTableProps> = ({
     items, mode, isEstimateMode, taxType,
-    updateQuantity, updatePrice, updateDiscount, removeItem, onEnterPress
+    updateQuantity, updatePrice, updateDiscount, updateItemFlag, removeItem, onEnterPress
 }) => {
     const scrollRef = React.useRef<HTMLDivElement>(null);
     const bottomRef = React.useRef<HTMLDivElement>(null);
@@ -45,6 +46,7 @@ export const BillingItemsTable: React.FC<BillingItemsTableProps> = ({
                             onQuantityChange={updateQuantity}
                             onPriceChange={updatePrice}
                             onDiscountChange={updateDiscount}
+                            onToggleExchange={mode === 'return' ? (id) => updateItemFlag?.(id, 'isExchange') : undefined}
                             onRemoveItem={removeItem}
                             onEnterPress={onEnterPress}
                             taxType={taxType}
