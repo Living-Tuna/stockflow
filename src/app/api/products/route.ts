@@ -49,12 +49,12 @@ export async function POST(req: NextRequest) {
 
     const [company, companyProductsCount] = await Promise.all([
       db.collection<Company>('companies').findOne({ id: companyId }),
-      db.collection<Product>('products').countDocuments({ companyId: companyId }),
+      db.collection<Product>('products').countDocuments({ companyId: companyId, isArchived: { $ne: true } }),
     ]);
     if (!company) return NextResponse.json({ success: false, message: 'Company not found.' }, { status: 404 });
 
     const plan = SUBSCRIPTION_PLANS.find(p => p.id === company.activeSubscriptionId);
-    if (plan && companyProductsCount >= (plan.maxStores * 500)) { // Simplified limit
+    if (plan && companyProductsCount >= plan.maxProducts) {
       return NextResponse.json({ success: false, message: `Product limit reached for your current plan.` }, { status: 403 });
     }
 

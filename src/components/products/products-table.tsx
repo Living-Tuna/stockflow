@@ -235,12 +235,9 @@ export function ProductsTable() {
     if (!activePlan) return false;
     const planDetails = SUBSCRIPTION_PLANS.find(p => p.id === activePlan.id);
     if (!planDetails) return false;
-    
-    const isUnlimited = planDetails.features.some(f => f.toLowerCase().includes("unlimited products") || f.toLowerCase().includes("unlimited items"));
-    if (isUnlimited) return true;
-    
-    return true; 
-  }, [activePlan, products.length]);
+    const activeProductCount = products.filter(p => !p.isArchived).length;
+    return activeProductCount < planDetails.maxProducts;
+  }, [activePlan, products]);
 
   const addProductButtonTooltipContent = !canAddProducts && activePlan
     ? `Product limit reached for your current plan (${activePlan.name}). Please upgrade.`

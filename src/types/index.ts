@@ -189,6 +189,7 @@ export interface SubscriptionPlan {
   features: string[];
   maxStores: number;
   maxEmployees: number;
+  maxProducts: number;
   isPopular?: boolean;
 }
 

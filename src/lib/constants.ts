@@ -119,6 +119,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     ],
     maxStores: 0,
     maxEmployees: 0,
+    maxProducts: 500,
   },
   {
     id: SUBSCRIPTION_PLAN_IDS.STARTER,
@@ -136,6 +137,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     ],
     maxStores: 1,
     maxEmployees: 2,
+    maxProducts: Infinity,
   },
   {
     id: SUBSCRIPTION_PLAN_IDS.GROWTH,
@@ -152,6 +154,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     ],
     maxStores: 3,
     maxEmployees: 10,
+    maxProducts: Infinity,
     isPopular: true,
   },
   {
@@ -169,6 +172,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     ],
     maxStores: Infinity,
     maxEmployees: Infinity,
+    maxProducts: Infinity,
   },
   {
     id: SUBSCRIPTION_PLAN_IDS.ENTERPRISE,
@@ -184,6 +188,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     ],
     maxStores: Infinity, 
     maxEmployees: Infinity,
+    maxProducts: Infinity,
   },
 ];
 
