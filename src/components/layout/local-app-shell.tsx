@@ -6,6 +6,7 @@ import { LocalSidebarNav } from './local-sidebar-nav';
 import { LocalHeaderMain } from './local-header-main';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { WhatsappLauncher } from '@/components/whatsapp/whatsapp-launcher';
 
 export function LocalAppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -21,6 +22,7 @@ export function LocalAppShell({ children }: { children: React.ReactNode }) {
           </SidebarInset>
         </div>
         <Toaster />
+        <WhatsappLauncher />
       </TooltipProvider>
     </SidebarProvider>
   );

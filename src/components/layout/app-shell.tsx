@@ -8,6 +8,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { useEffect } from 'react';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { WhatsappLauncher } from '@/components/whatsapp/whatsapp-launcher';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   // Ensure Zustand store is hydrated on client
@@ -29,6 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SidebarInset>
         </div>
         <Toaster />
+        <WhatsappLauncher />
       </TooltipProvider>
     </SidebarProvider>
   );

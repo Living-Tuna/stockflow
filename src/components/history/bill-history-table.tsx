@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { MoreHorizontal, Eye, Printer, ArrowUpDown, ShoppingBag, Send, RotateCcw, AlertTriangle, Users, Building as BuildingIcon, Trash2, Edit2, Save, Calendar as CalendarIcon } from 'lucide-react';
+import { MoreHorizontal, Eye, Printer, ArrowUpDown, ShoppingBag, Send, RotateCcw, AlertTriangle, Users, Building as BuildingIcon, Trash2, Edit2, Save, Calendar as CalendarIcon, MessageCircle } from 'lucide-react';
 import { format, isToday, isThisWeek, isThisMonth, isThisYear, startOfDay, endOfDay, isValid, parseISO, isWithinInterval, subMonths, subYears, startOfWeek, endOfWeek, getDate, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import type { Bill, ProductSKU, BillMode, BillItem, StockLayer, Product } from '@/types';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
@@ -35,6 +35,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { generatePrintContent, triggerPrint } from '@/lib/print-utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { sendBillToWhatsapp, billHasWhatsappPhone } from '@/lib/client/whatsapp-client';
 
 
 const getBillTypeIconAndColor = (billType: Bill['type'], items: BillItem[], isEstimate?: boolean): { icon: JSX.Element; className: string; name: string, titleColor: string } => {
@@ -101,6 +102,7 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [whatsappSendingBillId, setWhatsappSendingBillId] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: SortableBillColumns; direction: 'ascending' | 'descending' } | null>(null);
 
   type SortableBillColumns = keyof Pick<Bill, 'date' | 'type' | 'totalAmount' | 'vendorOrCustomerName' | 'paymentStatus' | 'billedByStaffName' | 'storeName'> | 'id';
@@ -331,6 +333,25 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
     if (!bill || !userProfile) return;
     const printContent = generatePrintContent(bill, userProfile, allProductsStore);
     triggerPrint(printContent);
+  };
+
+  const handleSendBillWhatsapp = async (bill: Bill) => {
+    if (!currentCompanyId) {
+      toast({ variant: "destructive", title: "Cannot send", description: "No company selected." });
+      return;
+    }
+    if (!billHasWhatsappPhone(bill)) {
+      toast({ variant: "destructive", title: "No phone", description: "This bill has no customer phone number." });
+      return;
+    }
+    setWhatsappSendingBillId(bill.id);
+    const r = await sendBillToWhatsapp(currentCompanyId, bill.id);
+    setWhatsappSendingBillId(null);
+    if (r.ok) {
+      toast({ title: "Bill sent on WhatsApp", description: `Sent to ${bill.customerPhone}` });
+    } else {
+      toast({ variant: "destructive", title: "Could not send on WhatsApp", description: r.message || "Check that WhatsApp is connected." });
+    }
   };
 
   // Navigate to the billing form pre-configured for a return/exchange against this sale bill.
@@ -756,6 +777,15 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
                     <Button variant="outline" onClick={() => handlePrintSelectedBill(selectedBill)}>
                       <Printer className="mr-2 h-4 w-4" /> Print
                     </Button>
+                    {selectedBill && billHasWhatsappPhone(selectedBill) && (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleSendBillWhatsapp(selectedBill)}
+                        disabled={whatsappSendingBillId === selectedBill.id}
+                      >
+                        {whatsappSendingBillId === selectedBill.id ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <MessageCircle className="mr-2 h-4 w-4" />} WhatsApp
+                      </Button>
+                    )}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="destructive">
@@ -956,6 +986,11 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
                           <DropdownMenuItem onClick={() => handlePrintSelectedBill(bill)}>
                             <Printer className="mr-2 h-4 w-4" /> Print Bill
                           </DropdownMenuItem>
+                          {billHasWhatsappPhone(bill) && (
+                            <DropdownMenuItem onClick={() => handleSendBillWhatsapp(bill)} disabled={whatsappSendingBillId === bill.id}>
+                              <MessageCircle className="mr-2 h-4 w-4" /> {whatsappSendingBillId === bill.id ? 'Sending…' : 'Send on WhatsApp'}
+                            </DropdownMenuItem>
+                          )}
                           {bill.type === 'sell' && !bill.isEstimate && (
                             <DropdownMenuItem onClick={() => handleInitiateReturn(bill)}>
                               <RotateCcw className="mr-2 h-4 w-4" /> Return / Exchange Items

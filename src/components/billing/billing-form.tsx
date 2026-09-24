@@ -22,11 +22,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { generatePrintContent, triggerPrint } from '@/lib/print-utils';
-import { Printer } from 'lucide-react';
+import { Printer, MessageCircle } from 'lucide-react';
 import type { Product, BillItem, BillMode, ProductSKU, Store, Staff, Bill, PendingBillPayload } from '@/types';
 import { SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
 import { format } from 'date-fns';
 import { getReturnableQuantity, computeReturnRefundAmount } from '@/lib/return-utils';
+import { sendBillToWhatsapp, billHasWhatsappPhone, isWhatsappAutoSendEnabled } from '@/lib/client/whatsapp-client';
+import { LogoSpinner } from '@/components/common/logo-spinner';
+import { Button } from '@/components/ui/button';
 
 interface BillingFormProps {
   storeId?: string;
@@ -131,6 +134,7 @@ export function BillingForm({
 
   const [billToPotentiallyPrint, setBillToPotentiallyPrint] = useState<Bill | null>(null);
   const [isPrintConfirmDialogOpen, setIsPrintConfirmDialogOpen] = useState(false);
+  const [isWhatsAppSendingBill, setIsWhatsAppSendingBill] = useState(false);
 
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannerPurpose, setScannerPurpose] = useState<'addItem' | 'updateProductSku' | null>(null);
@@ -424,6 +428,23 @@ export function BillingForm({
         setLastSavedBillMode(savedBill.type);
         setIsSavingAnimationVisible(true);
         resetFullForm();
+
+        // Auto-send the bill via WhatsApp when the user has enabled it in the
+        // WhatsApp panel. Non-blocking: failures only surface a toast.
+        if (
+          savedBill.customerPhone &&
+          isWhatsappAutoSendEnabled() &&
+          companyId
+        ) {
+          const r = await sendBillToWhatsapp(companyId, savedBill.id);
+          if (!r.ok) {
+            toast({
+              variant: "destructive",
+              title: "Bill not sent on WhatsApp",
+              description: r.message || "The bill saved fine, but WhatsApp delivery failed.",
+            });
+          }
+        }
       }
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: "Failed to save bill." });
@@ -541,9 +562,22 @@ export function BillingForm({
   useScannerBridge(handleBridgeScannedCode);
 
   const handleQuickProductAdded = (newProduct: Product) => {
-    // Track that this product was created during this billing session
-    // so addBill won't create duplicate stock layers
-    newlyCreatedProductIdsRef.current.add(newProduct.id);
+    // Mark this product for stock-layer skipping on the upcoming bill ONLY IF
+    // the create action itself already recorded stock for it. Quick-create with
+    // an initial quantity pre-stocks an INIT_PURCHASE layer, so the first bill
+    // line would otherwise double-count that quantity.
+    //
+    // Products created WITHOUT initial stock are NOT tracked here: the bill's
+    // purchase layer is the only way their stock enters the system, and skipping
+    // it would silently freeze the product at zero stock on the first purchase.
+    const wasPreStocked =
+      !!newProduct.trackQuantity &&
+      (newProduct.productSKUs || []).some(
+        (sku) => (sku.stockLayers || []).reduce((sum, layer) => sum + Number(layer.quantity || 0), 0) > 0
+      );
+    if (wasPreStocked) {
+      newlyCreatedProductIdsRef.current.add(newProduct.id);
+    }
 
     const defaultSku = newProduct.productSKUs?.[0] || {
       id: `${newProduct.id}_defaultSKU`,
@@ -579,7 +613,33 @@ export function BillingForm({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Print Bill?</AlertDialogTitle>
+            {billToPotentiallyPrint && billHasWhatsappPhone(billToPotentiallyPrint) && (
+              <AlertDialogDescription>
+                This bill has a customer phone number, so you can also send it on WhatsApp.
+              </AlertDialogDescription>
+            )}
           </AlertDialogHeader>
+          {billToPotentiallyPrint && billHasWhatsappPhone(billToPotentiallyPrint) && (
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={isWhatsAppSendingBill}
+              onClick={async () => {
+                if (!companyId || !billToPotentiallyPrint) return;
+                setIsWhatsAppSendingBill(true);
+                const r = await sendBillToWhatsapp(companyId, billToPotentiallyPrint.id);
+                setIsWhatsAppSendingBill(false);
+                if (r.ok) {
+                  toast({ title: "Bill sent on WhatsApp", description: `Sent to ${billToPotentiallyPrint.customerPhone}` });
+                } else {
+                  toast({ variant: "destructive", title: "Could not send on WhatsApp", description: r.message || "Check that WhatsApp is connected." });
+                }
+              }}
+            >
+              {isWhatsAppSendingBill ? <LogoSpinner size={16} /> : <MessageCircle className="h-4 w-4" />}
+              {isWhatsAppSendingBill ? "Sending…" : "Send on WhatsApp"}
+            </Button>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setIsPrintConfirmDialogOpen(false)}>No</AlertDialogCancel>
             <AlertDialogAction onClick={() => {

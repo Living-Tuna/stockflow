@@ -291,7 +291,7 @@ export interface PendingBillPayload {
   placeOfSupply?: string; // Added for GST compliance
   billingAddress?: string; // Added for GST compliance
   shippingAddress?: string; // Added for GST compliance
-  skipStockProductIds?: string[]; // Product IDs whose stock layers should not be created (used when product was just created)
+  skipStockProductIds?: string[]; // Product IDs whose stock layers should NOT be created for this bill — only for products created with an initial stock quantity in the same billing session (prevents double-counting the pre-stocked INIT layer)
   originalBillId?: string; // Sale bill this return/exchange settles against
   returnType?: 'return' | 'exchange'; // Exchange = no money credited back
 }
@@ -393,3 +393,73 @@ export interface ProductRevenueData {
 
 // Ensure Staff type is defined for clarity, although it's a subset of User
 export type Staff = User & { role: 'employee' };
+
+/* ------------------------------------------------------------------ */
+/* WhatsApp integration                                                */
+/* ------------------------------------------------------------------ */
+
+export type WhatsappConnectionState =
+  | 'idle'        // not connected, no session on disk
+  | 'qr'          // awaiting phone scan (live QR is available)
+  | 'connecting'  // session found, socket connecting/re-syncing
+  | 'connected'   // ready to send/receive
+  | 'closing'     // disconnecting
+  | 'disconnected' // broken or logged-out session
+
+export interface WhatsappConnection {
+  id: string;
+  companyId: string;
+  status: WhatsappConnectionState;
+  phoneNumber?: string | null;
+  qr?: string | null;          // QR as a data URL, while status === 'qr'
+  qrExpiresAt?: number | null;
+  lastError?: string | null;
+  autoSendBill?: boolean;      // automatically forward saved bills with a phone
+  connectedAt?: string | null;
+  disconnectedAt?: string | null;
+  updatedAt: string;
+}
+
+export interface WhatsappContact {
+  id: string;
+  companyId: string;
+  phone: string;               // international format, e.g. 919876543210
+  name?: string | null;
+  lastBillId?: string | null;
+  lastBillDate?: string | null;
+  totalBills?: number;
+  totalSpend?: number;
+  messageCount?: number;
+  lastMessageAt?: string | null;
+  createdAt: string;
+}
+
+export type WhatsappMessageDirection = 'out' | 'in';
+export type WhatsappMessageKind = 'bill' | 'promo' | 'manual' | 'auto';
+
+export interface WhatsappMessage {
+  id: string;
+  companyId: string;
+  contactPhone: string;
+  direction: WhatsappMessageDirection;
+  kind: WhatsappMessageKind;
+  text: string;
+  billId?: string | null;
+  status?: 'queued' | 'sent' | 'delivered' | 'read' | 'failed';
+  error?: string | null;
+  campaignId?: string | null;
+  timestamp: number;
+}
+
+export interface WhatsappCampaign {
+  id: string;
+  companyId: string;
+  name: string;
+  message: string;
+  audience: 'all' | 'with_bills' | 'recent' | 'spenders';
+  status: 'draft' | 'queued' | 'sending' | 'sent';
+  sentCount?: number;
+  totalCount?: number;
+  createdAt: string;
+  sentAt?: string | null;
+}
