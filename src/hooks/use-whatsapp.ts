@@ -18,6 +18,7 @@ export interface WhatsappStatus {
 }
 
 const AUTOSEND_LOCAL_KEY = 'stockflow:whatsapp:autosend';
+const sessionKey = (companyId: string) => `stockflow:whatsapp:session:${companyId}`;
 
 export function readAutoSendFlag(): boolean {
   if (typeof window === 'undefined') return false;
@@ -27,6 +28,32 @@ export function readAutoSendFlag(): boolean {
 export function writeAutoSendFlag(enabled: boolean) {
   if (typeof window === 'undefined') return;
   localStorage.setItem(AUTOSEND_LOCAL_KEY, enabled ? '1' : '0');
+}
+
+// The server keeps the WhatsApp session in memory only; the browser is the
+// durable store. These helpers read/write/clear the cached session so it can be
+// re-uploaded on connect (rehydrates without re-scanning the QR).
+function readSession(companyId: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(sessionKey(companyId));
+  } catch {
+    return null;
+  }
+}
+
+function writeSession(companyId: string, session: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(sessionKey(companyId), session);
+  } catch { /* quota/private mode — connection still works, just won't persist */ }
+}
+
+function removeSession(companyId: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(sessionKey(companyId));
+  } catch { /* ignore */ }
 }
 
 export interface UseWhatsAppOptions {
@@ -58,6 +85,16 @@ export function useWhatsApp(options: UseWhatsAppOptions = {}) {
   const pollingRef = useRef(false);
   const statusRef = useRef<WhatsappStatus>(status);
   statusRef.current = status;
+  const rehydratedRef = useRef(false);
+  const persistedRef = useRef(false);
+  const connectRef = useRef<() => Promise<any>>(async () => {});
+
+  const persistSession = useCallback(async (id: string) => {
+    const r = await raw(`/api/whatsapp/session?companyId=${encodeURIComponent(id)}`);
+    if (r.ok && typeof r.data?.session === 'string' && r.data.session) {
+      writeSession(id, r.data.session);
+    }
+  }, []);
 
   const fetchStatus = useCallback(async () => {
     if (!companyId) return;
@@ -66,9 +103,16 @@ export function useWhatsApp(options: UseWhatsAppOptions = {}) {
       const next = r.data as WhatsappStatus;
       setStatus(next);
       if (next.autoSendBill !== undefined) writeAutoSendFlag(!!next.autoSendBill);
+      if (next.status === 'connected' && !persistedRef.current) {
+        persistedRef.current = true;
+        void persistSession(companyId);
+      } else if (next.status === 'qr') {
+        // Server needs a fresh scan — any cached session is stale/useless.
+        removeSession(companyId);
+      }
     }
     setIsLoading(false);
-  }, [companyId]);
+  }, [companyId, persistSession]);
 
   const refreshContacts = useCallback(async (search?: string) => {
     if (!companyId) return;
@@ -92,6 +136,17 @@ export function useWhatsApp(options: UseWhatsAppOptions = {}) {
       await fetchStatus();
       if (cancelled) return;
       const st = statusRef.current.status;
+      // Cold server (restart / shared host): the engine has no live socket, but
+      // we may hold a cached session in the browser. Re-upload it once to
+      // reconnect without forcing a QR re-scan.
+      if (
+        !rehydratedRef.current &&
+        readSession(companyId) &&
+        (st === 'idle' || st === 'disconnected')
+      ) {
+        rehydratedRef.current = true;
+        void connectRef.current?.();
+      }
       const delayMs = st === 'qr' || st === 'connecting' ? 1800 : 5000;
       timer = setTimeout(tick, delayMs);
     };
@@ -112,16 +167,25 @@ export function useWhatsApp(options: UseWhatsAppOptions = {}) {
     setStatus((s) => ({ ...s, status: 'connecting', lastError: null }));
     const r = await raw('/api/whatsapp/connect', {
       method: 'POST',
-      body: JSON.stringify({ companyId }),
+      body: JSON.stringify({ companyId, session: readSession(companyId) || null }),
     });
     setStatus((s) => ({ ...s, ...(r.data || {}), ...(r.ok ? {} : { lastError: r.message }), status: r.data?.status || s.status }));
+    if (r.data?.status === 'disconnected') {
+      // Rehydrated creds were rejected (logged out / session expired) — drop the
+      // stale cache so the next connect starts a fresh QR flow.
+      removeSession(companyId);
+    }
     void fetchStatus();
     return r;
   }, [companyId, fetchStatus]);
+  connectRef.current = connect;
 
   const logout = useCallback(async () => {
     if (!companyId) return;
     await raw('/api/whatsapp/logout', { method: 'POST', body: JSON.stringify({ companyId }) });
+    removeSession(companyId);
+    rehydratedRef.current = false;
+    persistedRef.current = false;
     void fetchStatus();
   }, [companyId, fetchStatus]);
 

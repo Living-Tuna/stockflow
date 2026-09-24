@@ -11,7 +11,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const state = await startWhatsapp(companyId);
+    // Optional browser-cached session: rehydrates an existing linked device so
+    // the user doesn't have to re-scan the QR after a server restart.
+    const session: string | null = typeof body?.session === 'string' && body.session ? body.session : null;
+    const state = await startWhatsapp(companyId, session);
 
     if (state.status === 'qr' && state.qr) {
       const qr = await QRCode.toDataURL(state.qr, {

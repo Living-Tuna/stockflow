@@ -1,21 +1,22 @@
 // Server-only WhatsApp engine.
 //
-// Owns the live WhatsApp Web (Baileys) connection per company. Session
-// credentials are persisted to a local disk folder so that a connection
-// survives server restarts. This module must ONLY be imported from API route
-// handlers / server code — never from client components.
+// Owns the live WhatsApp Web (Baileys) connection per company. Auth state lives
+// ONLY in process memory; nothing is written to disk. The browser is the durable
+// store: the client caches the serialized session (creds + signal keys) in its
+// own storage and re-uploads it via POST /api/whatsapp/connect whenever the
+// server has no live connection (restart / cold start / shared host with a
+// read-only filesystem).
+// This module must ONLY be imported from API route handlers / server code —
+// never from client components.
 import makeWASocket, {
-  useMultiFileAuthState,
   DisconnectReason,
   type WASocket,
   type AnyMessageContent,
+  type SignalKeyStore,
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
-import fs from 'fs';
-import path from 'path';
 import type { WhatsappConnectionState } from '@/types';
 
-const SESSION_ROOT = path.join(process.cwd(), '.data', 'whatsapp-sessions');
 const logger = pino({ level: 'silent' });
 
 export interface WhatsAppEngineState {
@@ -31,17 +32,12 @@ export interface WhatsAppEngineState {
 
 interface EngineEntry {
   sock: WASocket;
-  saveCreds: () => Promise<void> | void;
   state: WhatsAppEngineState;
+  /** Serialize the in-memory auth (creds + signal keys) for browser caching. */
+  serialize: () => string | null;
 }
 
 export const DEFAULT_QR_TIMEOUT_MS = 90_000;
-
-const SESSION_NOT_FOUND = '__SESSION_NOT_FOUND__';
-
-function sessionDir(companyId: string): string {
-  return path.join(SESSION_ROOT, companyId);
-}
 
 function normalizePhone(raw: string): string {
   let digits = String(raw || '').replace(/\D/g, '');
@@ -63,6 +59,60 @@ function getRegistry(): Map<string, EngineEntry> {
   return g.__whatsappEngine as Map<string, EngineEntry>;
 }
 
+/* ---------------- in-memory auth state ---------------- */
+
+interface ParsedSession {
+  creds?: any;
+  keys?: Record<string, any>;
+}
+
+/**
+ * A Baileys SignalKeyStore that lives entirely in memory and can serialize the
+ * whole session to a single JSON string (and rebuild it from that string).
+ * Mirrors the `useSingleFileAuthState` pattern, minus the filesystem.
+ */
+function createAuthState(saved?: ParsedSession) {
+  const entries = new Map<string, any>(Object.entries(saved?.keys ?? {}));
+  let creds: any = saved?.creds ?? {};
+
+  const state = {
+    creds,
+    keys: {
+      get: async (type: string, ids: string[]) => {
+        const out: Record<string, any> = {};
+        for (const id of ids) {
+          const value = entries.get(`${type}_${id}`);
+          if (value !== undefined) out[id] = value;
+        }
+        return out;
+      },
+      set: async (data: Record<string, Record<string, any>>) => {
+        for (const category of Object.keys(data)) {
+          for (const id of Object.keys(data[category])) {
+            const value = data[category][id];
+            if (value !== null && value !== undefined) entries.set(`${category}_${id}`, value);
+            else entries.delete(`${category}_${id}`);
+          }
+        }
+      },
+    } satisfies SignalKeyStore,
+  };
+
+  return {
+    state,
+    serialize: (): string | null => {
+      // `state.creds` is the reference Baileys itself mutates in place on every
+      // creds.update (socket.js: Object.assign(creds, update)), so reading it
+      // live always yields the full, current credentials.
+      const creds = state.creds;
+      if (!creds || !creds.id || !creds.registered) return null;
+      return JSON.stringify({ creds, keys: Object.fromEntries(entries) });
+    },
+  };
+}
+
+/* ---------------- state helpers ---------------- */
+
 function recordDisconnect(entry: EngineEntry, code?: number) {
   const wasConnected = entry.state.status === 'connected';
   entry.state.status = 'disconnected';
@@ -81,9 +131,9 @@ function recordDisconnect(entry: EngineEntry, code?: number) {
 export function getWhatsappState(companyId: string): WhatsAppEngineState {
   const entry = getRegistry().get(companyId);
   if (!entry) {
-    const hasSession = fs.existsSync(sessionDir(companyId)) &&
-      fs.readdirSync(sessionDir(companyId)).some((f) => f.endsWith('.json'));
-    return { companyId, status: hasSession ? 'disconnected' : 'idle' };
+    // No in-memory session on this server instance. Whether the browser holds a
+    // cached one is a client-side concern (it re-uploads it on connect).
+    return { companyId, status: 'idle' };
   }
   return { ...entry.state };
 }
@@ -92,7 +142,21 @@ export function isWhatsappConnected(companyId: string): boolean {
   return getWhatsappState(companyId).status === 'connected';
 }
 
-export async function startWhatsapp(companyId: string): Promise<WhatsAppEngineState> {
+/** Serialize the live auth regardless of state (used to export the browser cache). */
+export function getWhatsappSession(companyId: string): string | null {
+  const entry = getRegistry().get(companyId);
+  if (!entry) return null;
+  try {
+    return entry.serialize();
+  } catch {
+    return null;
+  }
+}
+
+export async function startWhatsapp(
+  companyId: string,
+  sessionRaw?: string | null,
+): Promise<WhatsAppEngineState> {
   const registry = getRegistry();
   const existing = registry.get(companyId);
   if (existing) {
@@ -104,27 +168,30 @@ export async function startWhatsapp(companyId: string): Promise<WhatsAppEngineSt
     registry.delete(companyId);
   }
 
-  const dir = sessionDir(companyId);
-  const hasSession = fs.existsSync(dir) &&
-    fs.readdirSync(dir).some((f) => f.endsWith('.json'));
+  // Rehydrated from the browser cache (if the client supplied one); otherwise a
+  // fresh, unregistered auth that will emit a pairing QR.
+  let saved: ParsedSession | undefined;
+  if (typeof sessionRaw === 'string' && sessionRaw) {
+    try {
+      saved = JSON.parse(sessionRaw) as ParsedSession;
+    } catch { /* malformed cache → treat as no session */ }
+  }
+  const auth = createAuthState(saved);
 
   const entry: EngineEntry = {
     sock: undefined as unknown as WASocket,
-    saveCreds: () => undefined,
     state: {
       companyId,
-      status: hasSession ? 'connecting' : 'qr',
-      qr: hasSession ? undefined : '', // placeholder until a real QR arrives
+      status: saved ? 'connecting' : 'qr',
+      qr: saved ? undefined : '', // placeholder until a real QR arrives
       lastError: undefined,
     },
+    serialize: () => auth.serialize(),
   };
   registry.set(companyId, entry);
 
-  const { state, saveCreds } = await useMultiFileAuthState(dir);
-  entry.saveCreds = saveCreds;
-
   const sock = makeWASocket({
-    auth: state,
+    auth: auth.state,
     logger,
     browser: ['ecbills.in (StockFlow)', 'Chrome', '121'],
     printQRInTerminal: false,
@@ -134,7 +201,6 @@ export async function startWhatsapp(companyId: string): Promise<WhatsAppEngineSt
   });
   entry.sock = sock;
 
-  sock.ev.on('creds.update', saveCreds);
   sock.ev.on('messages.upsert', (upsert: any) => {
     const messages = upsert?.messages || [];
     for (const msg of messages) {
@@ -177,10 +243,6 @@ export async function startWhatsapp(companyId: string): Promise<WhatsAppEngineSt
       const code = lastDisconnect?.error?.output?.statusCode;
       recordDisconnect(entry, code);
       registry.delete(companyId);
-      if (!code || code === DisconnectReason.badSession) {
-        // Bad/partial local session: force a clean re-scan next time.
-        try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
-      }
       return;
     }
   });
@@ -198,9 +260,6 @@ export async function logoutWhatsapp(companyId: string): Promise<{ ok: boolean; 
     teardownEntry(entry);
     registry.delete(companyId);
   }
-  try {
-    fs.rmSync(sessionDir(companyId), { recursive: true, force: true });
-  } catch { /* ignore */ }
   return { ok: true };
 }
 

@@ -20,9 +20,6 @@
 # production
 /build
 
-# local runtime data (WhatsApp Web session creds, etc.)
-/.data/
-
 # misc
 .DS_Store
 *.pem
