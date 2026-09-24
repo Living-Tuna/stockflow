@@ -1,0 +1,13 @@
+# Local-only and heavy directories excluded from the Vercel upload/build.
+# The web app is built from the repo root; the scanner bridge is a separate
+# Electron app built via its own GitHub Actions workflow.
+node_modules
+.next
+.git
+scanner-bridge
+dist_electron
+StockFlow_Dist
+coverage
+usr
+*.exe
+*.pem
