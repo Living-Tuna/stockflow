@@ -184,23 +184,35 @@ export async function POST(req: NextRequest) {
           itemCostPrice = item.quantity > 0 ? costOfGoodsSoldThisItem / item.quantity : 0;
         }
       } else if (billType === 'buy' && product && sku) {
-        if (product.trackQuantity && !skipStockProductIds.has(item.productId)) {
-          const newLayer: StockLayer = {
-            id: uuidv4(), purchaseBillId: newBillId, purchaseDate: currentDate.toISOString(),
-            initialQuantity: item.quantity, quantity: item.quantity,
-            costPrice: itemCostPrice, sellPrice: itemSellPrice, storeId: storeId,
-          };
-          sku.stockLayers.push(newLayer);
+        if (product.trackQuantity) {
+          // Only honour the client's "skip stock" request when the product was
+          // genuinely pre-stocked at creation (an INIT_PURCHASE_ layer exists).
+          // Otherwise a freshly created product without initial stock would
+          // never get its first purchase layer — stock stuck at zero.
+          const canSkip = skipStockProductIds.has(item.productId) &&
+            (sku.stockLayers || []).some((l) => String(l.purchaseBillId || '').startsWith('INIT_PURCHASE_'));
+          if (!canSkip) {
+            const newLayer: StockLayer = {
+              id: uuidv4(), purchaseBillId: newBillId, purchaseDate: currentDate.toISOString(),
+              initialQuantity: item.quantity, quantity: item.quantity,
+              costPrice: itemCostPrice, sellPrice: itemSellPrice, storeId: storeId,
+            };
+            sku.stockLayers.push(newLayer);
+          }
         }
       } else if (billType === 'return' && product && sku) {
         itemCostPrice = item.costPrice || sku?.stockLayers.find(sl => sl.quantity > 0)?.costPrice || 0;
-        if (product.trackQuantity && !item.isDefective && !skipStockProductIds.has(item.productId)) {
-          const returnLayer: StockLayer = {
-            id: uuidv4(), purchaseBillId: newBillId, purchaseDate: currentDate.toISOString(),
-            initialQuantity: item.quantity, quantity: item.quantity,
-            costPrice: itemCostPrice, sellPrice: itemSellPrice, storeId: storeId,
-          };
-          sku.stockLayers.push(returnLayer);
+        if (product.trackQuantity && !item.isDefective) {
+          const canSkip = skipStockProductIds.has(item.productId) &&
+            (sku.stockLayers || []).some((l) => String(l.purchaseBillId || '').startsWith('INIT_PURCHASE_'));
+          if (!canSkip) {
+            const returnLayer: StockLayer = {
+              id: uuidv4(), purchaseBillId: newBillId, purchaseDate: currentDate.toISOString(),
+              initialQuantity: item.quantity, quantity: item.quantity,
+              costPrice: itemCostPrice, sellPrice: itemSellPrice, storeId: storeId,
+            };
+            sku.stockLayers.push(returnLayer);
+          }
         }
       }
 

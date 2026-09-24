@@ -87,22 +87,32 @@ function applySupabaseFilters(query: any, filter: any) {
       query = query.ilike(key, source);
     } else if (typeof value === 'object' && value !== null) {
       const v = value as any;
+      // A Mongo condition may combine several operators for one key
+      // (e.g. { $gte, $lt } for a range). Apply every operator present so a
+      // filter is never silently truncated to a single comparison.
       if ('$in' in v) {
         query = query.in(key, v.$in);
-      } else if ('$contains' in v) {
+      }
+      if ('$contains' in v) {
         // Postgres array column contains element(s)
         query = query.contains(key, Array.isArray(v.$contains) ? v.$contains : [v.$contains]);
-      } else if ('$ne' in v) {
+      }
+      if ('$ne' in v) {
         query = query.neq(key, v.$ne);
-      } else if ('$gte' in v) {
+      }
+      if ('$gte' in v) {
         query = query.gte(key, v.$gte);
-      } else if ('$lte' in v) {
+      }
+      if ('$lte' in v) {
         query = query.lte(key, v.$lte);
-      } else if ('$gt' in v) {
+      }
+      if ('$gt' in v) {
         query = query.gt(key, v.$gt);
-      } else if ('$lt' in v) {
+      }
+      if ('$lt' in v) {
         query = query.lt(key, v.$lt);
-      } else if ('$regex' in v) {
+      }
+      if ('$regex' in v) {
         const source = typeof v.$regex === 'string'
           ? v.$regex.replace(/^\^/, '').replace(/\$$/, '')
           : String(v.$regex);
