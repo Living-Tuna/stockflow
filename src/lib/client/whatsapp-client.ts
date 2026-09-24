@@ -1,5 +1,11 @@
 export { readAutoSendFlag as isWhatsappAutoSendEnabled } from '@/hooks/use-whatsapp';
 
+// WhatsApp is parked behind a "Coming soon" gate while the device-bridge
+// approach is being decided. Flip to true to re-enable the whole feature
+// (QR linking, messaging, campaigns, and bill auto-send). The Baileys engine
+// and /api/whatsapp/* routes are untouched and ready.
+export const WHATSAPP_ENABLED = false as const;
+
 export async function sendBillToWhatsapp(companyId: string, billId: string): Promise<{ ok: boolean; message?: string }> {
   try {
     const res = await fetch('/api/whatsapp/send-bill', {

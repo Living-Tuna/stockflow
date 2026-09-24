@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Package, DollarSign, Users, Building, User as UserIcon, Settings as SettingsIcon, MessageSquare, MessageCircle, Contact, BarChartHorizontal, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Package, DollarSign, Users, Building, User as UserIcon, Settings as SettingsIcon, MessageSquare, Contact, BarChartHorizontal, BookOpen } from 'lucide-react';
 import type { SubscriptionPlan, CurrencyOption } from '@/types';
 
 export interface NavSubLink {
@@ -72,7 +72,6 @@ export const NAV_LINK_GROUPS: NavLinkGroup[] = [
     title: "Communications",
     links: [
       { href: '/admin/chat', label: 'Chat', icon: MessageSquare, description: 'Store conversations' },
-      { href: '/admin/whatsapp', label: 'WhatsApp', icon: MessageCircle, description: 'WhatsApp CRM & messaging' },
     ],
   },
   {

@@ -35,7 +35,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { generatePrintContent, triggerPrint } from '@/lib/print-utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { sendBillToWhatsapp, billHasWhatsappPhone } from '@/lib/client/whatsapp-client';
+import { sendBillToWhatsapp, billHasWhatsappPhone, WHATSAPP_ENABLED } from '@/lib/client/whatsapp-client';
 
 
 const getBillTypeIconAndColor = (billType: Bill['type'], items: BillItem[], isEstimate?: boolean): { icon: JSX.Element; className: string; name: string, titleColor: string } => {
@@ -777,7 +777,7 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
                     <Button variant="outline" onClick={() => handlePrintSelectedBill(selectedBill)}>
                       <Printer className="mr-2 h-4 w-4" /> Print
                     </Button>
-                    {selectedBill && billHasWhatsappPhone(selectedBill) && (
+                    {WHATSAPP_ENABLED && selectedBill && billHasWhatsappPhone(selectedBill) && (
                       <Button
                         variant="outline"
                         onClick={() => handleSendBillWhatsapp(selectedBill)}
@@ -986,7 +986,7 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
                           <DropdownMenuItem onClick={() => handlePrintSelectedBill(bill)}>
                             <Printer className="mr-2 h-4 w-4" /> Print Bill
                           </DropdownMenuItem>
-                          {billHasWhatsappPhone(bill) && (
+                          {WHATSAPP_ENABLED && billHasWhatsappPhone(bill) && (
                             <DropdownMenuItem onClick={() => handleSendBillWhatsapp(bill)} disabled={whatsappSendingBillId === bill.id}>
                               <MessageCircle className="mr-2 h-4 w-4" /> {whatsappSendingBillId === bill.id ? 'Sending…' : 'Send on WhatsApp'}
                             </DropdownMenuItem>

@@ -3,12 +3,14 @@
 import React, { useState } from 'react';
 import { WhatsappPanel } from '@/components/whatsapp/whatsapp-panel';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { WHATSAPP_ENABLED } from '@/lib/client/whatsapp-client';
 import { cn } from '@/lib/utils';
 
 export function WhatsappLauncher() {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
 
+  if (!WHATSAPP_ENABLED) return null;
   if (!isMobile) return null;
 
   return (

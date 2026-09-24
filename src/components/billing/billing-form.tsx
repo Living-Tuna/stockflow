@@ -27,7 +27,7 @@ import type { Product, BillItem, BillMode, ProductSKU, Store, Staff, Bill, Pendi
 import { SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
 import { format } from 'date-fns';
 import { getReturnableQuantity, computeReturnRefundAmount } from '@/lib/return-utils';
-import { sendBillToWhatsapp, billHasWhatsappPhone, isWhatsappAutoSendEnabled } from '@/lib/client/whatsapp-client';
+import { sendBillToWhatsapp, billHasWhatsappPhone, isWhatsappAutoSendEnabled, WHATSAPP_ENABLED } from '@/lib/client/whatsapp-client';
 import { LogoSpinner } from '@/components/common/logo-spinner';
 import { Button } from '@/components/ui/button';
 
@@ -432,6 +432,7 @@ export function BillingForm({
         // Auto-send the bill via WhatsApp when the user has enabled it in the
         // WhatsApp panel. Non-blocking: failures only surface a toast.
         if (
+          WHATSAPP_ENABLED &&
           savedBill.customerPhone &&
           isWhatsappAutoSendEnabled() &&
           companyId
@@ -613,13 +614,13 @@ export function BillingForm({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Print Bill?</AlertDialogTitle>
-            {billToPotentiallyPrint && billHasWhatsappPhone(billToPotentiallyPrint) && (
+            {WHATSAPP_ENABLED && billToPotentiallyPrint && billHasWhatsappPhone(billToPotentiallyPrint) && (
               <AlertDialogDescription>
                 This bill has a customer phone number, so you can also send it on WhatsApp.
               </AlertDialogDescription>
             )}
           </AlertDialogHeader>
-          {billToPotentiallyPrint && billHasWhatsappPhone(billToPotentiallyPrint) && (
+          {WHATSAPP_ENABLED && billToPotentiallyPrint && billHasWhatsappPhone(billToPotentiallyPrint) && (
             <Button
               variant="outline"
               className="w-full"

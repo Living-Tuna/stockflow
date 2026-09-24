@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Sidebar, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarHeader, SidebarContent, useSidebar, SidebarSeparator, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton, SidebarGroupLabel } from '@/components/ui/sidebar';
 import { BrandMark } from '@/components/common/brand-mark';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronRight, ChevronLeft, ChevronDown, LayoutDashboard, DollarSign, Package, BookOpen, Settings as SettingsIcon, Store, MessageCircle } from 'lucide-react';
+import { ChevronRight, ChevronLeft, ChevronDown, LayoutDashboard, DollarSign, Package, BookOpen, Settings as SettingsIcon, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import React, { useState, Suspense } from 'react';
@@ -58,7 +58,6 @@ export const LOCAL_NAV_LINKS: LocalNavGroup[] = [
     title: "Workspace",
     icon: SettingsIcon,
     links: [
-      { href: '/local/whatsapp', label: 'WhatsApp', icon: MessageCircle, description: 'WhatsApp CRM & messaging' },
       { href: '/local/settings', label: 'Settings', icon: SettingsIcon, description: 'Workspace options' },
     ],
   },
