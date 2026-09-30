@@ -189,7 +189,7 @@ export const BillingProductSelector: React.FC<BillingProductSelectorProps> = ({
 
                     {productNotFoundHint && productNameQuery.toLowerCase() === productNotFoundHint.toLowerCase() && (
                         <div className="bg-destructive/10 text-destructive p-2 rounded-md text-sm mt-2">
-                            Product not found. Press Enter again to add new.
+                            Product not found. Press <kbd className="rounded border border-destructive/40 px-1 font-sans text-xs">Shift + Enter</kbd> to add it as a new product.
                         </div>
                     )}
                 </div>

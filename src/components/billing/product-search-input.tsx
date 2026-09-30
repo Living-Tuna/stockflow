@@ -183,6 +183,16 @@ export function ProductSearchInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Shift+Enter always creates the typed text as a new product, even when the
+    // search already returned matches. Without this, a partial name that fuzzy-
+    // matches an existing product (e.g. "Star" vs "Star Annice") swallows Enter
+    // and the create path becomes unreachable.
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      handleAddTypedProduct();
+      return;
+    }
+
     if (showSuggestions && suggestions.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -251,9 +261,9 @@ export function ProductSearchInput({
         className="w-full"
       />
       {showSuggestions && trimmedValue.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-60">
-          <ScrollArea className="max-h-60">
-            {suggestions.length > 0 ? (
+        <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-72">
+          <ScrollArea className="max-h-72">
+            {suggestions.length > 0 && (
               <ul>
                 {suggestions.map((suggestion, index) => (
                   <li
@@ -286,21 +296,27 @@ export function ProductSearchInput({
                   </li>
                 ))}
               </ul>
-            ) : canAddTypedProduct ? (
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleAddTypedProduct();
-                }}
-              >
-                <span className="rounded bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">Enter</span>
-                <span className="min-w-0 flex-1 truncate">
-                  Press Enter to add <span className="font-medium">&quot;{trimmedValue}&quot;</span>
-                </span>
-              </button>
-            ) : null}
+            )}
+            {canAddTypedProduct && (
+              <>
+                {suggestions.length > 0 && <div className="my-1 border-t border-border" />}
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleAddTypedProduct();
+                  }}
+                >
+                  <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                    Shift + Enter
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    Add new product <span className="font-medium">&quot;{trimmedValue}&quot;</span>
+                  </span>
+                </button>
+              </>
+            )}
           </ScrollArea>
         </div>
       )}
