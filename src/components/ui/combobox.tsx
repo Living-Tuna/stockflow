@@ -24,6 +24,7 @@ interface ComboboxProps {
   emptyText?: string
   disabled?: boolean
   className?: string
+  id?: string
 }
 
 export function Combobox({
@@ -35,6 +36,7 @@ export function Combobox({
   emptyText = "No options found.",
   disabled = false,
   className,
+  id,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
@@ -53,7 +55,7 @@ export function Combobox({
     <Popover open={open} onOpenChange={(nextOpen) => { setOpen(nextOpen); if (!nextOpen) setQuery(""); }}>
       <PopoverTrigger asChild>
         <Button
-          id="returnSourceBill"
+          id={id}
           type="button"
           variant="outline"
           role="combobox"

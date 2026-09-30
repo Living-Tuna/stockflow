@@ -81,12 +81,17 @@ export function getNetAmountRatio(bill: Bill): number {
  * Validates a return against the original sale bill. Returns an error message
  * (or null when OK). Every returned quantity must be <= what is still
  * returnable on the matching original line.
+ *
+ * Exchange lines are exempt: an exchange is new goods going out in place of the
+ * ones coming back, so those products are legitimately not on the original bill
+ * and no refund is owed for them.
  */
 export function validateReturnAgainstOriginal(originalBill: Bill, items: BillItem[]): string | null {
   if (!originalBill || originalBill.type !== 'sell' || originalBill.isEstimate) {
     return 'A return must reference a valid sales bill.';
   }
   for (const item of items) {
+    if (isExchangeItem(item)) continue;
     if (item.productId.startsWith('SERVICE_ITEM_') || item.productId.startsWith('CHARGE_ITEM_')) continue;
     const originalItem = originalBill.items.find((i) => sameItemLine(i, item));
     if (!originalItem) {

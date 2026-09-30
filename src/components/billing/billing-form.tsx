@@ -17,16 +17,16 @@ import { ProductSearchSuggestion } from './product-search-input';
 import { BillSaveAnimation } from './bill-save-animation';
 import { EmployeePasskeyDialog } from './employee-passkey-dialog';
 import { NewProductDialog } from './new-product-dialog';
+import { ReturnBillReference } from './return-bill-reference';
 import { UnifiedScannerModal } from '@/components/common/UnifiedScannerModal';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Combobox } from '@/components/ui/combobox';
-import { Label } from '@/components/ui/label';
 import { generatePrintContent, triggerPrint } from '@/lib/print-utils';
 import { Printer, MessageCircle } from 'lucide-react';
 import type { Product, BillItem, BillMode, ProductSKU, Store, Staff, Bill, PendingBillPayload } from '@/types';
 import { SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
 import { format } from 'date-fns';
 import { getReturnableQuantity, computeReturnRefundAmount } from '@/lib/return-utils';
+import { roundMoney } from '@/lib/units';
 import { sendBillToWhatsapp, billHasWhatsappPhone, isWhatsappAutoSendEnabled, WHATSAPP_ENABLED } from '@/lib/client/whatsapp-client';
 import { LogoSpinner } from '@/components/common/logo-spinner';
 import { Button } from '@/components/ui/button';
@@ -198,11 +198,6 @@ export function BillingForm({
     return originalItem ? getReturnableQuantity(originalItem) : 0;
   }, [mode, returnSourceBill]);
 
-  const returnRefundPreview = useMemo(() => {
-    if (mode !== 'return' || currentBillItems.length === 0) return 0;
-    return computeReturnRefundAmount(currentBillItems);
-  }, [mode, currentBillItems]);
-
   const returnSourceOptions = useMemo(
     () => returnableSaleBills.map(bill => ({
       value: bill.id,
@@ -212,6 +207,25 @@ export function BillingForm({
     [returnableSaleBills]
   );
 
+  /**
+   * Return-mode money split for the summary panel: returned lines credit money
+   * back (shown negative/red), exchange lines push new goods out without moving
+   * money (shown positive/green). `net` is what the shop actually owes back.
+   */
+  const returnBreakdown = useMemo(() => {
+    if (mode !== 'return') return undefined;
+    const refund = computeReturnRefundAmount(currentBillItems);
+    const exchange = roundMoney(
+      currentBillItems
+        .filter(i => i.isExchange)
+        .reduce((sum, i) => {
+          const taxable = Math.max(0, (i.sellPrice || 0) * (i.quantity || 0) - (i.discountAmount || 0));
+          return sum + taxable + (i.sgstAmount || 0) + (i.cgstAmount || 0) + (i.igstAmount || 0);
+        }, 0)
+    );
+    return { refund, exchange, net: roundMoney(refund - exchange) };
+  }, [mode, currentBillItems]);
+
   // Pre-select the original sale bill when arriving via ?mode=return&returnBillId=...
   useEffect(() => {
     if (mode === 'return') {
@@ -219,6 +233,23 @@ export function BillingForm({
       if (billIdFromQuery) setReturnSourceBillId(billIdFromQuery);
     }
   }, [mode, searchParamsHook]);
+
+  // Switching the original bill invalidates the lines already added: they were
+  // chosen against the previous bill's remaining quantities, and the server
+  // re-validates every line against the linked bill on save. Start clean rather
+  // than let a stale line fail the save with a confusing error.
+  const lastReturnSourceBillIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (mode !== 'return') {
+      lastReturnSourceBillIdRef.current = null;
+      return;
+    }
+    const previous = lastReturnSourceBillIdRef.current;
+    lastReturnSourceBillIdRef.current = returnSourceBillId;
+    if (previous && previous !== returnSourceBillId) {
+      setCurrentBillItems([]);
+    }
+  }, [mode, returnSourceBillId]);
 
   // Totals Calculation
   const billTotals = useMemo(() => {
@@ -328,8 +359,12 @@ export function BillingForm({
       }
     }
 
-    // Return/exchange mode: the item must exist on the selected sale bill and the
-    // quantity must not exceed what is still returnable there.
+    // Return/exchange mode. Items that exist on the selected sale bill are capped
+    // at what is still returnable there. Items that are NOT on that bill are
+    // allowed, because that is exactly what an exchange is: new goods going out
+    // in place of returned ones. Those lines carry no refund, so they are marked
+    // as exchanges here (and can still be toggled back per line).
+    let isExchangeLine = false;
     if (mode === 'return') {
       if (!returnSourceBill) {
         toast({ variant: "destructive", title: "Select Sale Bill", description: "Pick the original sale bill you are returning against." });
@@ -337,14 +372,14 @@ export function BillingForm({
       }
       const originalItem = returnSourceBill.items.find(i => i.productId === product.id &&
         JSON.stringify(i.selectedVariantOptions || {}) === JSON.stringify(selectedOpts));
-      if (!originalItem) {
-        toast({ variant: "destructive", title: "Not on Bill", description: `"${product.name}" is not on the selected sale bill (${returnSourceBill.invoiceNumber || returnSourceBill.id}).` });
-        return;
-      }
-      const remaining = getReturnableQuantity(originalItem);
-      if (currentQ > remaining) {
-        toast({ variant: "destructive", title: "Over Return", description: `Only ${remaining} of "${product.name}" left to return/exchange (already handled ${(originalItem.quantity || 0) - remaining}).` });
-        return;
+      if (originalItem) {
+        const remaining = getReturnableQuantity(originalItem);
+        if (currentQ > remaining) {
+          toast({ variant: "destructive", title: "Over Return", description: `Only ${remaining} of "${product.name}" left to return/exchange (already handled ${(originalItem.quantity || 0) - remaining}).` });
+          return;
+        }
+      } else {
+        isExchangeLine = true;
       }
     }
 
@@ -358,13 +393,20 @@ export function BillingForm({
       quantity: currentQ,
       costPrice: itemCostPrice,
       sellPrice: itemSellPrice,
-      isDefective: mode === 'return' ? returnItemIsDefective : undefined,
-      isExchange: mode === 'return' ? false : undefined,
+      isDefective: mode === 'return' && !isExchangeLine ? returnItemIsDefective : undefined,
+      isExchange: mode === 'return' ? isExchangeLine : undefined,
       selectedVariantOptions: selectedOpts,
       isAdditionalCharge: false
     };
 
     setCurrentBillItems(prev => [...prev, recalculateItemTaxes(newItem)]);
+
+    if (isExchangeLine) {
+      toast({
+        title: 'Added as exchange',
+        description: `"${newItem.productName}" is not on the original bill, so it is an exchange line (no refund). Tap the exchange icon on the row to change that.`,
+      });
+    }
 
     // Reset fields
     setProductNameQuery('');
@@ -375,6 +417,44 @@ export function BillingForm({
     setSelectedVariantOptions({});
     productNameInputRef.current?.focus();
   };
+
+  /**
+   * "Add" on a row in the reference panel: pulls a line straight off the original
+   * sale bill into the return at its billed price and full remaining quantity,
+   * so the common case is one click rather than retyping the product.
+   */
+  const handleAddSourceBillItem = useCallback((sourceItem: BillItem, quantity: number) => {
+    if (quantity <= 0) return;
+
+    const line: BillItem = {
+      ...sourceItem,
+      id: uuidv4(),
+      quantity,
+      // A return line must not inherit the original line's settlement bookkeeping.
+      isExchange: false,
+      isDefective: false,
+      returnedQuantity: undefined,
+      exchangedQuantity: undefined,
+      defectiveReturnedQuantity: undefined,
+      lastReturnedOn: undefined,
+      lastExchangedOn: undefined,
+    };
+
+    setCurrentBillItems(prev => {
+      const key = `${line.productId}_${JSON.stringify(line.selectedVariantOptions || {})}`;
+      // Merge into an identical existing line rather than stacking duplicates.
+      const existingIdx = prev.findIndex(
+        (i) => !i.isExchange && !i.isDefective &&
+          `${i.productId}_${JSON.stringify(i.selectedVariantOptions || {})}` === key
+      );
+      if (existingIdx === -1) return [...prev, recalculateItemTaxes(line)];
+
+      const next = [...prev];
+      const merged: BillItem = { ...next[existingIdx], quantity: (next[existingIdx].quantity || 0) + quantity };
+      next[existingIdx] = recalculateItemTaxes(merged);
+      return next;
+    });
+  }, []);
 
   const handleSaveBill = async () => {
     // Save logic similar to original, constructing payload
@@ -699,48 +779,15 @@ export function BillingForm({
 
       <div className="flex flex-col border shadow-sm rounded-lg bg-card p-4">
         {mode === 'return' && (
-          <div className="mb-3 space-y-2 border rounded-md p-3 bg-muted/20">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="returnSourceBill" className="text-sm font-medium">
-                  Return / Exchange Against (Original Sale Bill)
-                </Label>
-                <Combobox
-                  options={returnSourceOptions}
-                  value={returnSourceBillId}
-                  onValueChange={setReturnSourceBillId}
-                  placeholder="Search & select the original sale bill..."
-                  searchPlaceholder="Search bill id, customer, amount..."
-                  emptyText="No sale bills available to return against."
-                />
-              </div>
-              {returnSourceBill && (
-                <div className="space-y-1.5 text-sm">
-                  {returnSourceBill.items.some(i => getReturnableQuantity(i) > 0) ? (
-                    <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-                      {returnSourceBill.items.filter(i => getReturnableQuantity(i) > 0).map(i => (
-                        <span key={i.id}>{i.productName} — {getReturnableQuantity(i)} left</span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-amber-600">All items on this bill are already fully returned/exchanged.</div>
-                  )}
-                  <div className="text-sm">
-                    {currentBillItems.length > 0 && (
-                      <>
-                        <span className="text-muted-foreground">Refund credited back to customer: </span>
-                        <span className="font-semibold text-primary">₹{returnRefundPreview.toFixed(2)}</span>
-                        {currentBillItems.some(i => i.isExchange) && (
-                          <span className="text-muted-foreground">
-                            {' '}(exchanged lines — no money back)
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+          <div className="mb-3 rounded-md border bg-muted/20 p-3">
+            <ReturnBillReference
+              sourceBill={returnSourceBill}
+              sourceBillId={returnSourceBillId}
+              sourceOptions={returnSourceOptions}
+              onSourceBillChange={setReturnSourceBillId}
+              currentItems={currentBillItems}
+              onAddSourceItem={handleAddSourceBillItem}
+            />
           </div>
         )}
 
@@ -820,6 +867,7 @@ export function BillingForm({
           notes={notes} setNotes={setNotes}
           onSave={handleSaveBill}
           isSaving={isSaving}
+          returnBreakdown={returnBreakdown}
         />
       </div>
     </div>
