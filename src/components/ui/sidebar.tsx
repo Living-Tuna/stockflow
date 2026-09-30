@@ -513,9 +513,11 @@ const sidebarMenuButtonVariants = cva(
           "border border-border bg-transparent hover:bg-primary/10 hover:text-primary-foreground",
       },
       size: {
-        default: "h-10 text-sm", 
-        sm: "h-9 text-xs",    
-        lg: "h-11 text-base",  
+        // min-h-* not h-*: items render a label + description on two lines and
+        // a fixed height clips the second line (the padding collapses with it).
+        default: "min-h-11 text-sm", 
+        sm: "min-h-10 text-xs",    
+        lg: "min-h-12 text-base",  
       },
     },
     defaultVariants: {
@@ -738,8 +740,10 @@ const SidebarMenuSubButton = React.forwardRef<
       className={cn(
         "flex min-w-0 items-center gap-2 overflow-hidden rounded-md px-3 py-2 text-secondary-foreground/80 outline-none ring-ring hover:bg-primary/10 hover:text-primary-foreground focus-visible:ring-1 active:bg-primary/10 active:text-primary-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
         "data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:font-medium",
-        size === "sm" && "text-xs h-7", // Adjusted height
-        size === "md" && "text-sm h-8", // Adjusted height
+        // min-h-* not h-*: sub-items carry a label + secondary on two lines, and
+        // a fixed height (h-7/h-8) clipped the second line, eating the padding.
+        size === "sm" && "min-h-9 text-xs",
+        size === "md" && "min-h-11 text-sm",
         state === "collapsed" && "hidden", 
         className
       )}
