@@ -84,7 +84,7 @@ function startServer() {
         app: 'ecbills-scanner-bridge',
         version: APP_BRIDGE_VERSION,
         port,
-        captureMode: captureActive ? 'window' : 'none',
+        captureMode: captureActive ? 'window' : 'idle',
         clients: wss ? wss.clients.size : 0,
       }));
       return;

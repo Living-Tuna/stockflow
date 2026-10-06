@@ -12,11 +12,9 @@ export function ScannerBridgeStatus() {
   const { connected, captureMode, version } = useScannerBridge();
 
   const onlineLabel = connected
-    ? captureMode === 'global'
-      ? 'Scanner Bridge: Online (Global)'
-      : captureMode === 'window'
-      ? 'Scanner Bridge: Online'
-      : 'Scanner Bridge: Connected'
+    ? captureMode === 'window'
+      ? 'Scanner Bridge: Online (Listening)'
+      : 'Scanner Bridge: Connected (Listening off)'
     : 'Scanner Bridge: Off';
 
   return (

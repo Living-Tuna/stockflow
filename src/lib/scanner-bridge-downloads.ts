@@ -9,7 +9,11 @@
  * Installers are published to GitHub Releases on every release; the
  * `latest/download/<name>` URLs below always resolve to the newest build.
  */
-export const SCANNER_BRIDGE_VERSION = '1.0.0';
+/**
+ * Keep in sync with `scanner-bridge/package.json` (single source of truth for
+ * the web app: `scanner-bridge/` is excluded from the Vercel deploy).
+ */
+export const SCANNER_BRIDGE_VERSION = '1.1.0';
 export const SCANNER_BRIDGE_WS_URL = 'ws://127.0.0.1:9080';
 export const SCANNER_BRIDGE_HEALTH_URL_LOCAL = 'http://127.0.0.1:9080/health';
 export const SCANNER_BRIDGE_DOWNLOAD_PAGE = '/download';

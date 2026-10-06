@@ -62,7 +62,7 @@ export default function BridgeDownloadPage() {
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {connected
-                        ? `Paired via ${SCANNER_BRIDGE_WS_URL} · ${captureMode === 'global' ? 'global capture' : 'portal capture'}${version ? ` · v${version}` : ''}`
+                        ? `Paired via ${SCANNER_BRIDGE_WS_URL} · ${captureMode === 'window' ? 'scanner listening' : 'listening off'}${version ? ` · v${version}` : ''}`
                         : `Listening on ${SCANNER_BRIDGE_WS_URL}. Download the edition below, start it, then refresh this page.`}
                     </p>
                   </div>

@@ -49,11 +49,36 @@ npm run dist:linux # build Linux AppImage
 Installers are published to GitHub Releases automatically on tags matching
 `scanner-bridge-*` via `.github/workflows/bridge-release.yml`.
 
+## Release
+
+1. Bump the version everywhere it is declared:
+   `scanner-bridge/package.json`, `scanner-bridge/main.js`
+   (`APP_BRIDGE_VERSION`), `scanner-bridge/preload.js`,
+   `src/lib/scanner-bridge-downloads.ts` (`SCANNER_BRIDGE_VERSION`) and the
+   default `release_tag` in `.github/workflows/bridge-release.yml`.
+2. Add a `## [bridge <version>] - <date>` section to the root `CHANGELOG.md`
+   (the release notes are taken from it).
+3. Commit, then tag and push:
+
+```bash
+git tag scanner-bridge-v<version>
+git push origin scanner-bridge-v<version>
+```
+
+The workflow builds the Windows NSIS installer and the Linux AppImage, creates
+the GitHub release when it does not exist yet, and uploads both installers with
+`--clobber`. The `latest/download/...` links used by the landing and download
+pages then resolve to the new build.
+
 ## Ports / protocol
 
 | Endpoint                     | Purpose                                  |
 | ---------------------------- | ---------------------------------------- |
 | `ws://127.0.0.1:9080`        | scan frames pushed to web clients        |
-| `http://127.0.0.1:9080/health` | health check used by the status pill   |
+| `http://127.0.0.1:9080/health` | health check: version, clients, capture mode |
+
+WebSocket frames: `hello` and `status` both carry
+`captureMode: "window" | "idle"` (`window` while "Scanner Listening" is on,
+`idle` while it is off) plus the bridge `version`.
 
 Config is stored in `config.json` under Electron's `userData` directory.

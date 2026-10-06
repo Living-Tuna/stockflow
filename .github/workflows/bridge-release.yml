@@ -6,7 +6,7 @@ on:
       release_tag:
         description: 'Release tag to upload installers to'
         required: false
-        default: 'scanner-bridge-v1.0.0'
+        default: 'scanner-bridge-v1.1.0'
   push:
     tags:
       - 'scanner-bridge-*'
@@ -46,20 +46,47 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Publish to GitHub release
-        working-directory: scanner-bridge
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           TAG="${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
+          REPO="${{ github.repository }}"
+          VERSION="${TAG#scanner-bridge-}"
+          PKG_VERSION="$(node -p "require('./scanner-bridge/package.json').version")"
+
+          if [ "$VERSION" != "$PKG_VERSION" ]; then
+            echo "::warning::Tag $TAG does not match scanner-bridge/package.json version $PKG_VERSION"
+          fi
+
           UPLOAD_FILES=()
-          if [ -f dist/ecbills-scanner-bridge-setup.exe ]; then
-            UPLOAD_FILES+=("dist/ecbills-scanner-bridge-setup.exe")
+          for f in scanner-bridge/dist/ecbills-scanner-bridge-setup.exe \
+                   scanner-bridge/dist/ecbills-scanner-bridge.AppImage; do
+            if [ -f "$f" ]; then UPLOAD_FILES+=("$f"); fi
+          done
+          if [ ${#UPLOAD_FILES[@]} -eq 0 ]; then
+            echo "::error::No installers were produced by this build"
+            exit 1
           fi
-          if [ -f dist/ecbills-scanner-bridge.AppImage ]; then
-            UPLOAD_FILES+=("dist/ecbills-scanner-bridge.AppImage")
+
+          # Create the release (and tag) when it does not exist yet.
+          # Parallel matrix jobs may race here, hence the tolerated failure.
+          if ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            NOTES_ARGS=(--generate-notes)
+            NOTES_FILE="$(mktemp)"
+            if [ -f CHANGELOG.md ] && \
+               awk -v ver="$VERSION" '
+                 $0 ~ "^## \\[bridge " ver "\\]" { found = 1; next }
+                 found && /^## \[/ { exit }
+                 found { print }
+               ' CHANGELOG.md > "$NOTES_FILE" && [ -s "$NOTES_FILE" ]; then
+              NOTES_ARGS=(--notes-file "$NOTES_FILE")
+            fi
+            gh release create "$TAG" --repo "$REPO" \
+              --title "ecbills Scanner Bridge $VERSION" "${NOTES_ARGS[@]}" \
+              || echo "::notice::Release $TAG already exists (created by another job)"
           fi
-          if [ ${#UPLOAD_FILES[@]} -gt 0 ]; then
-            gh release upload "$TAG" "${UPLOAD_FILES[@]}" \
-              --repo "${{ github.repository }}" --clobber
-          fi
+
+          gh release upload "$TAG" "${UPLOAD_FILES[@]}" --repo "$REPO" --clobber
+          echo "Uploaded ${UPLOAD_FILES[*]} to release $TAG"

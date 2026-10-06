@@ -5,15 +5,27 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 export const SCANNER_BRIDGE_URL = 'ws://127.0.0.1:9080';
 export const SCANNER_BRIDGE_HEALTH_URL = 'http://127.0.0.1:9080/health';
 
+/**
+ * Capture modes reported by the bridge's `hello` / `status` frames:
+ * - `window` — the portal window is focused and keystrokes are captured
+ * - `idle`   — bridge is running but "Scanner Listening" is off
+ * - `none`   — not connected / no mode reported yet
+ */
+export type ScannerBridgeCaptureMode = 'window' | 'idle' | 'none';
+
 export interface ScannerBridgeState {
   connected: boolean;
-  captureMode: 'window' | 'global' | 'none';
+  captureMode: ScannerBridgeCaptureMode;
   version?: string;
   lastScan?: string;
   error?: string;
 }
 
 const RETRY_DELAYS = [2000, 3000, 5000, 8000, 12000];
+
+function toCaptureMode(value: unknown): ScannerBridgeCaptureMode | undefined {
+  return value === 'window' || value === 'idle' ? value : undefined;
+}
 
 /**
  * Connects to the local ecbills desktop scanner bridge (ws://127.0.0.1:9080).
@@ -52,7 +64,7 @@ export function useScannerBridge(onScan?: (code: string) => void) {
             ...prev,
             connected: true,
             version: message.version,
-            captureMode: message.captureMode || prev.captureMode,
+            captureMode: toCaptureMode(message.captureMode) ?? prev.captureMode,
           }));
         } else if (message?.type === 'scan' && typeof message.code === 'string' && message.code) {
           setState((prev) => ({ ...prev, lastScan: message.code }));
@@ -60,7 +72,7 @@ export function useScannerBridge(onScan?: (code: string) => void) {
         } else if (message?.type === 'status') {
           setState((prev) => ({
             ...prev,
-            captureMode: message.captureMode || prev.captureMode,
+            captureMode: toCaptureMode(message.captureMode) ?? prev.captureMode,
             version: message.version || prev.version,
           }));
         }

@@ -204,7 +204,7 @@ export function PrinterSettingsCard() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>No printers found</AlertTitle>
-                <AlertDescription>Install or enable a printer in Windows, then refresh this list.</AlertDescription>
+                <AlertDescription>Install or enable a printer on this computer, then refresh this list.</AlertDescription>
               </Alert>
             ) : (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
