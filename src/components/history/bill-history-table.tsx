@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { MoreHorizontal, Eye, Printer, ArrowUpDown, ShoppingBag, Send, RotateCcw, AlertTriangle, Users, Building as BuildingIcon, Trash2, Edit2, Save, Calendar as CalendarIcon, MessageCircle } from 'lucide-react';
-import { format, isToday, isThisWeek, isThisMonth, isThisYear, startOfDay, endOfDay, isValid, parseISO, isWithinInterval, subMonths, subYears, startOfWeek, endOfWeek, getDate, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { format, getDate, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import type { Bill, ProductSKU, BillMode, BillItem, StockLayer, Product } from '@/types';
 import { useInventoryStore } from '@/hooks/use-inventory-store';
 import { useAppData } from '@/contexts/app-data-context';
@@ -36,6 +36,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/
 import { generatePrintContent, triggerPrint } from '@/lib/print-utils';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { sendBillToWhatsapp, billHasWhatsappPhone, WHATSAPP_ENABLED } from '@/lib/client/whatsapp-client';
+import { getBillPeriodRange, type BillTimePeriod } from '@/lib/bill-date-range';
 
 
 const getBillTypeIconAndColor = (billType: Bill['type'], items: BillItem[], isEstimate?: boolean): { icon: JSX.Element; className: string; name: string, titleColor: string } => {
@@ -64,7 +65,7 @@ const getPartyNameLabel = (billType?: BillMode): string => {
 };
 
 
-export type TimePeriodFilterOption = 'all' | 'today' | 'thisWeek' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'lastYear' | 'custom';
+export type TimePeriodFilterOption = BillTimePeriod;
 
 interface BillHistoryTableProps {
   filterByStoreId?: string;
@@ -144,33 +145,9 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
       processBills = processBills.filter(bill => bill.storeId === filterByStoreId);
     }
 
-    if (timePeriodFilter === 'today') {
-      processBills = processBills.filter(bill => isToday(new Date(bill.timestamp)));
-    } else if (timePeriodFilter === 'thisWeek') {
-      processBills = processBills.filter(bill => isThisWeek(new Date(bill.timestamp), { weekStartsOn: 1 }));
-    } else if (timePeriodFilter === 'thisMonth') {
-      processBills = processBills.filter(bill => isThisMonth(new Date(bill.timestamp)));
-    } else if (timePeriodFilter === 'lastMonth') {
-      const today = new Date();
-      const firstDayLastMonth = startOfMonth(subMonths(today, 1));
-      const lastDayLastMonth = endOfMonth(subMonths(today, 1));
-      processBills = processBills.filter(bill => isWithinInterval(new Date(bill.timestamp), { start: firstDayLastMonth, end: lastDayLastMonth }));
-    } else if (timePeriodFilter === 'thisYear') {
-      processBills = processBills.filter(bill => isThisYear(new Date(bill.timestamp)));
-    } else if (timePeriodFilter === 'lastYear') {
-      const today = new Date();
-      const firstDayLastYear = startOfYear(subYears(today, 1));
-      const lastDayLastYear = endOfYear(subYears(today, 1));
-      processBills = processBills.filter(bill => isWithinInterval(new Date(bill.timestamp), { start: firstDayLastYear, end: lastDayLastYear }));
-    } else if (timePeriodFilter === 'custom' && customStartDate && customEndDate) {
-      const start = startOfDay(customStartDate);
-      const end = endOfDay(customEndDate);
-      if (isValid(start) && isValid(end) && end >= start) {
-        processBills = processBills.filter(bill => {
-          const billDate = new Date(bill.timestamp);
-          return isWithinInterval(billDate, { start, end });
-        });
-      }
+    const periodRange = getBillPeriodRange(timePeriodFilter, customStartDate, customEndDate);
+    if (periodRange) {
+      processBills = processBills.filter(bill => isWithinInterval(new Date(bill.timestamp), periodRange));
     }
 
 
@@ -243,20 +220,8 @@ export function BillHistoryTable({ filterByStoreId, timePeriodFilter, customStar
   const billTypeCounts = useMemo(() => {
     let base = [...allBillsFromStore];
     if (filterByStoreId) base = base.filter(b => b.storeId === filterByStoreId);
-    if (timePeriodFilter === 'today') base = base.filter(b => isToday(new Date(b.timestamp)));
-    else if (timePeriodFilter === 'thisWeek') base = base.filter(b => isThisWeek(new Date(b.timestamp), { weekStartsOn: 1 }));
-    else if (timePeriodFilter === 'thisMonth') base = base.filter(b => isThisMonth(new Date(b.timestamp)));
-    else if (timePeriodFilter === 'lastMonth') {
-      const t = new Date(); const s = startOfMonth(subMonths(t, 1)); const e = endOfMonth(subMonths(t, 1));
-      base = base.filter(b => isWithinInterval(new Date(b.timestamp), { start: s, end: e }));
-    } else if (timePeriodFilter === 'thisYear') base = base.filter(b => isThisYear(new Date(b.timestamp)));
-    else if (timePeriodFilter === 'lastYear') {
-      const t = new Date(); const s = startOfYear(subYears(t, 1)); const e = endOfYear(subYears(t, 1));
-      base = base.filter(b => isWithinInterval(new Date(b.timestamp), { start: s, end: e }));
-    } else if (timePeriodFilter === 'custom' && customStartDate && customEndDate) {
-      const s = startOfDay(customStartDate); const e = endOfDay(customEndDate);
-      if (isValid(s) && isValid(e) && e >= s) base = base.filter(b => isWithinInterval(new Date(b.timestamp), { start: s, end: e }));
-    }
+    const periodRange = getBillPeriodRange(timePeriodFilter, customStartDate, customEndDate);
+    if (periodRange) base = base.filter(b => isWithinInterval(new Date(b.timestamp), periodRange));
     return {
       all: base.length,
       sell: base.filter(b => b.type === 'sell' && !b.isEstimate).length,

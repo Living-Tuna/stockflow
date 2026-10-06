@@ -7,6 +7,7 @@ import type { BillMode, Store } from '@/types';
 import { PageTitle } from '@/components/common/page-title';
 import { BillingForm } from '@/components/billing/billing-form';
 import { BillHistoryTable, type TimePeriodFilterOption } from '@/components/history/bill-history-table'; 
+import { BILL_PERIOD_ORDER, getBillPeriodOptionLabel } from '@/lib/bill-date-range';
 import { InventoryLedgerTable } from '@/components/billing/inventory-ledger-table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -18,7 +19,7 @@ import { SUBSCRIPTION_PLAN_IDS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfWeek, endOfWeek, subMonths, subYears } from 'date-fns';
+import { format } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -102,7 +103,7 @@ function BillingContent() {
   const [hasMounted, setHasMounted] = useState(false);
   const isAdminContext = true; 
 
-  const [timePeriodFilter, setTimePeriodFilter] = useState<TimePeriodFilterOption>('thisMonth');
+  const [timePeriodFilter, setTimePeriodFilter] = useState<TimePeriodFilterOption>('thisWeek');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
 
   const [showNoStoreAlertDialog, setShowNoStoreAlertDialog] = useState(false);
@@ -285,14 +286,11 @@ function BillingContent() {
                           <SelectValue placeholder="Filter by time" />
                       </SelectTrigger>
                       <SelectContent>
-                          <SelectItem value="today">Today</SelectItem>
-                          <SelectItem value="thisWeek">This Week</SelectItem>
-                          <SelectItem value="thisMonth">This Month</SelectItem>
-                          <SelectItem value="lastMonth">Last Month</SelectItem>
-                          <SelectItem value="thisYear">This Year</SelectItem>
-                          <SelectItem value="lastYear">Last Year</SelectItem>
-                          <SelectItem value="all">All Time</SelectItem>
-                          <SelectItem value="custom">Custom Range</SelectItem>
+                          {BILL_PERIOD_ORDER.map((period) => (
+                              <SelectItem key={period} value={period}>
+                                  {getBillPeriodOptionLabel(period)}
+                              </SelectItem>
+                          ))}
                       </SelectContent>
                   </Select>
                   {timePeriodFilter === 'custom' && (

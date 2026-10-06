@@ -7,6 +7,7 @@ import type { BillMode, Store } from '@/types';
 import { PageTitle } from '@/components/common/page-title';
 import { BillingForm } from '@/components/billing/billing-form';
 import { BillHistoryTable, type TimePeriodFilterOption } from '@/components/history/bill-history-table'; 
+import { BILL_PERIOD_ORDER, getBillPeriodOptionLabel } from '@/lib/bill-date-range';
 import { InventoryLedgerTable } from '@/components/billing/inventory-ledger-table';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -49,7 +50,7 @@ function BillingContent() {
   // Local mode does NOT have admin context - it's restricted to local store only
   const isAdminContext = false; 
 
-  const [timePeriodFilter, setTimePeriodFilter] = useState<TimePeriodFilterOption>('thisMonth');
+  const [timePeriodFilter, setTimePeriodFilter] = useState<TimePeriodFilterOption>('thisWeek');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
@@ -136,14 +137,11 @@ function BillingContent() {
                       <SelectValue placeholder="Filter by time" />
                   </SelectTrigger>
                   <SelectContent>
-                      <SelectItem value="today">Today</SelectItem>
-                      <SelectItem value="thisWeek">This Week</SelectItem>
-                      <SelectItem value="thisMonth">This Month</SelectItem>
-                      <SelectItem value="lastMonth">Last Month</SelectItem>
-                      <SelectItem value="thisYear">This Year</SelectItem>
-                      <SelectItem value="lastYear">Last Year</SelectItem>
-                      <SelectItem value="all">All Time</SelectItem>
-                      <SelectItem value="custom">Custom Range</SelectItem>
+                      {BILL_PERIOD_ORDER.map((period) => (
+                          <SelectItem key={period} value={period}>
+                              {getBillPeriodOptionLabel(period)}
+                          </SelectItem>
+                      ))}
                   </SelectContent>
               </Select>
               {timePeriodFilter === 'custom' && (
