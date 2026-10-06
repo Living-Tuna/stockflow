@@ -53,7 +53,8 @@ jobs:
           set -euo pipefail
           TAG="${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
           REPO="${{ github.repository }}"
-          VERSION="${TAG#scanner-bridge-}"
+          RAW_VERSION="${TAG#scanner-bridge-}"
+          VERSION="${RAW_VERSION#v}"
           PKG_VERSION="$(node -p "require('./scanner-bridge/package.json').version")"
 
           if [ "$VERSION" != "$PKG_VERSION" ]; then
@@ -70,22 +71,36 @@ jobs:
             exit 1
           fi
 
+          # Release notes come from the matching `## [bridge <version>]` section
+          # in CHANGELOG.md; fall back to auto-generated notes otherwise.
+          NOTES_FILE="$(mktemp)"
+          HAVE_NOTES=false
+          if [ -f CHANGELOG.md ] && \
+             awk -v ver="$VERSION" '
+               $0 ~ "^## \\[bridge " ver "\\]" { found = 1; next }
+               found && /^## \[/ { exit }
+               found { print }
+             ' CHANGELOG.md > "$NOTES_FILE" && [ -s "$NOTES_FILE" ]; then
+            HAVE_NOTES=true
+          fi
+
           # Create the release (and tag) when it does not exist yet.
           # Parallel matrix jobs may race here, hence the tolerated failure.
           if ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-            NOTES_ARGS=(--generate-notes)
-            NOTES_FILE="$(mktemp)"
-            if [ -f CHANGELOG.md ] && \
-               awk -v ver="$VERSION" '
-                 $0 ~ "^## \\[bridge " ver "\\]" { found = 1; next }
-                 found && /^## \[/ { exit }
-                 found { print }
-               ' CHANGELOG.md > "$NOTES_FILE" && [ -s "$NOTES_FILE" ]; then
-              NOTES_ARGS=(--notes-file "$NOTES_FILE")
+            if [ "$HAVE_NOTES" = true ]; then
+              gh release create "$TAG" --repo "$REPO" \
+                --title "ecbills Scanner Bridge v$VERSION" --notes-file "$NOTES_FILE" \
+                || echo "::notice::Release $TAG already exists (created by another job)"
+            else
+              gh release create "$TAG" --repo "$REPO" \
+                --title "ecbills Scanner Bridge v$VERSION" --generate-notes \
+                || echo "::notice::Release $TAG already exists (created by another job)"
             fi
-            gh release create "$TAG" --repo "$REPO" \
-              --title "ecbills Scanner Bridge $VERSION" "${NOTES_ARGS[@]}" \
-              || echo "::notice::Release $TAG already exists (created by another job)"
+          fi
+
+          # Keep the release body synced with CHANGELOG.md when it has a section.
+          if [ "$HAVE_NOTES" = true ]; then
+            gh release edit "$TAG" --repo "$REPO" --notes-file "$NOTES_FILE" || true
           fi
 
           gh release upload "$TAG" "${UPLOAD_FILES[@]}" --repo "$REPO" --clobber
